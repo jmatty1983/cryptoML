@@ -1,0 +1,19 @@
+{
+  "name": "cryptoML",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node main"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ccxt": "^1.17.458",
+    "dotenv-safe": "^6.1.0",
+    "request": "^2.88.0",
+    "sqlite3": "^4.0.3",
+    "winston": "^3.1.0"
+  }
+}
