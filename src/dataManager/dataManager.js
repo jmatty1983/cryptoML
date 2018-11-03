@@ -23,7 +23,7 @@ const DataManager = {
   getNewestTrade: function (table) {
     return new Promise(resolve => {
       dbConn = this.getDb();
-      const res = dbConn.each(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`, [], (err, row) => resolve(row.lastId));
+      const res = dbConn.each(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`, [], (err, row) => resolve(row && row.lastId ? row.lastId : 0));
     });
   },
 
