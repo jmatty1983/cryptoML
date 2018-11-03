@@ -4,6 +4,7 @@ const { combine, timestamp, printf, colorize } = format;
 const outputFormat = printf(info => `${info.timestamp} ${info.level}: ${info.message}`);
 
 const Logger = createLogger({
+  level: process.env.LOG_LEVEL || 'info',
   transports: [
     new transports.Console({ 
       format: combine(
