@@ -1,11 +1,17 @@
 const db = require('sqlite3');
+const _ = require('lodash');
 
 const Logger = require('../Logger/Logger');
 
 const dataDir = process.env.DATA_DIR;
 const dbExt = process.env.DB_EXT;
+const limit = 100000;
 
 const DataManager = {
+  /**
+   * Constructor for OLOO style behavior delgation.
+   * @param {string} dbFile - data base file name
+   */
   init: function (dbFile) {
     if (!dbFile || !dataDir || !dbExt) {
       Logger.error('Database or exchange is undefined');
@@ -16,18 +22,172 @@ const DataManager = {
     Logger.info('Data manager initialized.');
   },
 
-  getDb: function () {
-    return new db.Database(`${dataDir}${this.dbFile}${dbExt}`);
-  },
-
-  getNewestTrade: function (table) {
+  /**
+   * Builds candles of different types
+   * @param {string tick|time|volume|currency} type - type of candle
+   * @param {integer} length - length of candle
+   * @param {array{}} data - array of trade objects
+   * 
+   * @returns {promise} Promise object contains {candles - new candles, remaineder - unprocessed trades at tail end}
+   */
+  buildCandles: function ({type, length, rows}) {
     return new Promise(resolve => {
-      dbConn = this.getDb();
-      const res = dbConn.each(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`, [], (err, row) => resolve(row && row.lastId ? row.lastId : 0));
+      switch (type) {
+        case 'tick':
+          const chunks = _.chunk(rows, length);
+          const remainder = chunks[chunks.length - 1].length < length ? chunks.pop() : null;
+          const candles = chunks.map(trades => this.makeCandle(trades));
+          resolve({candles, remainder});
+          break;
+        default:
+          throw(`Invalid candle type ${type}`);
+      }
     });
   },
 
-  store: function (batch) {
+  /**
+   * Returns a live sqlite connection
+   */
+  getDb: function () {
+    const dbConn = new db.Database(`${dataDir}${this.dbFile}${dbExt}`);
+    dbConn.run('PRAGMA journal_mode = WAL');
+    return dbConn;
+  },
+
+  /**
+   * Returns largest tradeId
+   * @param {string} table
+   * @returns {integer}
+   */
+  getNewestTrade: function (table) {
+    return new Promise(resolve => {
+      dbConn = this.getDb();
+      dbConn.each(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`, [], (err, row) => resolve(row && row.lastId ? row.lastId : 0));
+      dbConn.close();
+    });
+  },
+
+  loadCandles: function ({table, fromId, fromTime, tick, time, volume, currency}) {
+    if (!fromId && !fromTime) {
+      fromId = 1;
+    }
+
+    if (!tick && !time && !volume && !currency) {
+      tick = 233;
+    }
+
+    //const dbConn = this.getDb();
+
+    if (tick) {
+      //TODO: Tick Candles
+    } else if (time) {
+      //TODO: Time candles
+    } else if (volume) {
+      //TODO: Volume candles
+    } else if (currency) {
+      //TODO: Currency candles
+    }
+  },
+
+  /** 
+   * Candle is a candle is a candle is a candle. All get built the same, only difference is
+   * how we decide which trades to build them from
+   * @param {array{}} - array of trade objects
+   * @returns {object} - returns a candle object of type OHLCV
+   */
+  makeCandle: function (trades) {
+    return trades.reduce((acc, trade) => {
+      acc.open = acc.open || trade.price;
+      acc.close = trade.price;
+      acc.high = trade.price > acc.high ? trade.price : acc.high;
+      acc.low = trade.price < acc.low ? trade.price : acc.low;
+      acc.volume += trade.quantity;
+
+      return acc;
+    }, {volume: 0, high: 0, low: Infinity});
+  },
+
+  /**
+   * @param {string} table - table to process from
+   * @param {array{}} types - array of candles to process into
+   * types need to be in the format:
+   * [{
+   *   type: tick|time|volume|currency,
+   *   length: number
+   * }]
+   */
+  processCandles: async function (table, types) {
+    try {
+      let rowLen;
+      do {
+        let remainders;
+        rowLen = new Promise(resolve => {
+          const dbConn = this.getDb();
+          dbConn.all(`SELECT * FROM [${table}] ORDER BY tradeId ASC LIMIT ${limit}`, [], async (err, rows) => {
+            const candles = types.map(({type, length}) => {
+              if (err) {
+                throw(err);
+              }
+              if (_.get(remainders, `${table}_${type}_${length}`)) {
+                rows.unshift(remainders[`${table}_${type}_${length}`]);
+              }
+              return new Promise(async resolve => {
+                const built = await this.buildCandles({type, length, rows});
+                resolve({ type, length, built });
+              });
+            });
+
+            const allCandles = await Promise.all(candles);
+            remainers = allCandles.reduce((acc, {type, length, built}) => {
+              this.storeCandles(`${table}_${type}_${length}`, built.candles);
+              acc[`${table}_${type}_${length}`] = built.remainder;
+              return acc;
+            }, {});
+            resolve(rows.length);
+          });
+          dbConn.close();
+        });
+      } while (await rowLen === limit)
+    } catch (e) {
+      Logger.error(e.message);
+    }
+  },
+
+  /**
+   * Stores candle data
+   * @param {string} table - table name
+   * @param {array{}} candles - array of candle objects
+   */
+  storeCandles: function (table, candles) {
+    try {
+      if (!this.dbFile) {
+        throw('Database file unspecified');
+      }
+
+      const dbConn = this.getDb();
+      const query = `CREATE TABLE IF NOT EXISTS [${table}] (id INTEGER PRIMARY KEY AUTOINCREMENT, open REAL, close REAL, high REAL, low REAL, volume REAL)`;
+      dbConn.serialize(() => {
+        dbConn.run(query);
+        dbConn.run('BEGIN TRANSACTION');
+        const insertStmt = dbConn.prepare(`INSERT INTO [${table}] (open, close, high, low, volume) VALUES (?, ?, ?, ?, ?)`);
+        candles.forEach(candle => insertStmt.run(candle.open, candle.close, candle.high, candle.low, candle.volume));
+        insertStmt.finalize();
+        dbConn.run('COMMIT');
+      });
+    
+      dbConn.close();
+      
+      Logger.debug(`${candles.length} added to ${table}`)
+    } catch (e) {
+      Logger.error(e.message);
+    }
+  },
+
+  /**
+   * Stores a batch of trades in the sqlite db
+   * @param {array} batch - batch of trades
+   */
+  storeTrades: function (batch) {
     try {
       if (!this.dbFile) {
         throw('Database file unspecified');
@@ -37,9 +197,9 @@ const DataManager = {
         throw('Data must be specified and an array');
       }
 
-      const dbConn = this.getDb()
+      const dbConn = this.getDb();
       const table = `[${batch[0].symbol}]`;
-      const query = `CREATE TABLE IF NOT EXISTS ${table} (id INTEGER PRIMARY KEY AUTOINCREMENT, tradeId INTEGER, timestamp INTEGER, price REAL, quantity REAL)`
+      const query = `CREATE TABLE IF NOT EXISTS ${table} (id INTEGER PRIMARY KEY AUTOINCREMENT, tradeId INTEGER, timestamp INTEGER, price REAL, quantity REAL)`;
       dbConn.serialize(() => {
         dbConn.run(query);
         dbConn.run('BEGIN TRANSACTION');

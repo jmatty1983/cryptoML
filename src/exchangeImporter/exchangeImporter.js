@@ -4,6 +4,10 @@ const DataManager = require('../dataManager/dataManager');
 const Logger = require('../Logger/Logger');
 
 const exchangeImporter = {
+    /**
+   * Constructor for OLOO style behavior delgation.
+   * @param {string} exchange - exchange name
+   */
   init: function (exchange) {
     this.exchange = exchange;
     const dataManager = Object.create(DataManager);
@@ -13,6 +17,10 @@ const exchangeImporter = {
     Logger.info('Exchange import initialized.');
   },
 
+  /**
+   * Imports all trade data for a pair from an exchange
+   * @param {string} pair
+   */
   getPair: async function (pair) {
     try {
       if (pair) {
@@ -32,7 +40,7 @@ const exchangeImporter = {
         let batch;
         do {
           batch = await exchange.fetchTrades(pair, undefined, undefined, {fromId, limit: 1000});
-          await this.dataManager.store(batch);
+          await this.dataManager.storeTrades(batch);
           fromId += 1000;
         } while (batch.length === 1000);
 
