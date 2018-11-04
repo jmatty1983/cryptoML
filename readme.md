@@ -1,5 +1,6 @@
-### Installtion
+### Installation
 After cloning, run `npm install`
+Copy the .env.example to .env
 
 ### CLI Commands
 * `npm run import <pair>` ex: `npm run import BTC/USDT`
