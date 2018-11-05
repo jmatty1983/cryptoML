@@ -125,8 +125,8 @@ const DataManager = {
         await new Promise(resolve => dbConn.close(resolve));
       }
 
+      let remainders = {};
       do {
-        let remainders;
         rowLen = new Promise(resolve => {
           const dbConn = this.getDb();
           dbConn.all(`SELECT * FROM [${table}] ORDER BY tradeId ASC LIMIT ${limit}`, [], async (err, rows) => {
@@ -134,15 +134,15 @@ const DataManager = {
               if (err) {
                 throw(err);
               }
-              if (_.get(remainders, `${table}_${type}_${length}`)) {
-                rows.unshift(remainders[`${table}_${type}_${length}`]);
-              }
+
               return new Promise(async resolve => {
-                const built = await this.buildCandles({type, length, rows});
+                const extra = remainders[`${table}_${type}_${length}`] ? remainders[`${table}_${type}_${length}`] : [];
+
+                const built = await this.buildCandles({type, length, rows: [...extra, ...rows]});
                 resolve({ type, length, built });
               });
             });
-            dbConn.close();          
+            dbConn.close();
 
             const allCandles = await Promise.all(candles);
             //this makes me so unhappy
