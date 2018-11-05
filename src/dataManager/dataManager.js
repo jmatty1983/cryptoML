@@ -119,12 +119,13 @@ const DataManager = {
   processCandles: async function (table, types) {
     try {
       let rowLen;
-      for (let i = 0; i < types.length; i++) {
-        const dbConn = this.getDb();
-        dbConn.run(`DROP TABLE IF EXISTS [${table}_${types[i].type}_${types[i].length}]`);
-        await new Promise(resolve => dbConn.close(resolve));
-      }
-
+      const dbConn = this.getDb();
+      dbConn.serialize(() => {
+        for (let i = 0; i < types.length; i++) {
+          dbConn.run(`DROP TABLE IF EXISTS [${table}_${types[i].type}_${types[i].length}]`);  
+        }
+      });
+      await new Promise(resolve => dbConn.close(resolve));
       let remainders = {};
       do {
         rowLen = new Promise(resolve => {
