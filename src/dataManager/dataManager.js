@@ -1,7 +1,7 @@
 const db = require('sqlite3');
 const _ = require('lodash');
 
-const Logger = require('../Logger/Logger');
+const Logger = require('../logger/logger');
 
 const dataDir = process.env.DATA_DIR;
 const dbExt = process.env.DB_EXT;
@@ -119,6 +119,12 @@ const DataManager = {
   processCandles: async function (table, types) {
     try {
       let rowLen;
+      for (let i = 0; i < types.length; i++) {
+        const dbConn = this.getDb();
+        dbConn.run(`DROP TABLE IF EXISTS [${table}_${types[i].type}_${types[i].length}]`);
+        await new Promise(resolve => dbConn.close(resolve));
+      }
+
       do {
         let remainders;
         rowLen = new Promise(resolve => {
@@ -136,16 +142,18 @@ const DataManager = {
                 resolve({ type, length, built });
               });
             });
+            dbConn.close();          
 
             const allCandles = await Promise.all(candles);
-            remainers = allCandles.reduce((acc, {type, length, built}) => {
-              this.storeCandles(`${table}_${type}_${length}`, built.candles);
-              acc[`${table}_${type}_${length}`] = built.remainder;
-              return acc;
-            }, {});
+            //this makes me so unhappy
+            remainders = {};
+            for (let i = 0; i < allCandles.length; i++) {
+              const {type, length, built} = allCandles[i];
+              await this.storeCandles(`${table}_${type}_${length}`, built.candles);
+              remainders[`${table}_${type}_${length}`] = built.remainder;
+            }
             resolve(rows.length);
           });
-          dbConn.close();
         });
       } while (await rowLen === limit)
     } catch (e) {
@@ -158,59 +166,62 @@ const DataManager = {
    * @param {string} table - table name
    * @param {array{}} candles - array of candle objects
    */
-  storeCandles: function (table, candles) {
-    try {
-      if (!this.dbFile) {
-        throw('Database file unspecified');
-      }
+  storeCandles: async function (table, candles) {
+    return new Promise(resolve => {
+      try {
+        if (!this.dbFile) {
+          throw('Database file unspecified');
+        }
 
-      const dbConn = this.getDb();
-      const query = `CREATE TABLE IF NOT EXISTS [${table}] (id INTEGER PRIMARY KEY AUTOINCREMENT, open REAL, close REAL, high REAL, low REAL, volume REAL)`;
-      dbConn.serialize(() => {
-        dbConn.run(query);
-        dbConn.run('BEGIN TRANSACTION');
-        const insertStmt = dbConn.prepare(`INSERT INTO [${table}] (open, close, high, low, volume) VALUES (?, ?, ?, ?, ?)`);
-        candles.forEach(candle => insertStmt.run(candle.open, candle.close, candle.high, candle.low, candle.volume));
-        insertStmt.finalize();
-        dbConn.run('COMMIT');
-      });
-    
-      dbConn.close();
+        const dbConn = this.getDb();
+        dbConn.serialize(() => {
+          dbConn.run(`CREATE TABLE IF NOT EXISTS [${table}] (id INTEGER PRIMARY KEY AUTOINCREMENT, open REAL, close REAL, high REAL, low REAL, volume REAL)`);
+          dbConn.run('BEGIN TRANSACTION');
+          const insertStmt = dbConn.prepare(`INSERT INTO [${table}] (open, close, high, low, volume) VALUES (?, ?, ?, ?, ?)`);
+          candles.forEach(candle => insertStmt.run(candle.open, candle.close, candle.high, candle.low, candle.volume));
+          insertStmt.finalize();
+          dbConn.run('COMMIT');
+        });
       
-      Logger.debug(`${candles.length} added to ${table}`)
-    } catch (e) {
-      Logger.error(e.message);
-    }
+        dbConn.close(resolve);
+        
+        Logger.debug(`${candles.length} added to ${table}`)
+      } catch (e) {
+        Logger.error(e.message);
+      }
+    });
   },
 
   /**
    * Stores a batch of trades in the sqlite db
    * @param {array} batch - batch of trades
    */
-  storeTrades: function (batch) {
+  storeTrades: async function (batch) {
     try {
-      if (!this.dbFile) {
-        throw('Database file unspecified');
-      }
+      return new Promise(resolve => {
+        if (!this.dbFile) {
+          throw('Database file unspecified');
+        }
 
-      if (!batch || !batch.length) {
-        throw('Data must be specified and an array');
-      }
+        if (!batch || !batch.length) {
+          throw('Data must be specified and an array');
+        }
 
-      const dbConn = this.getDb();
-      const table = `[${batch[0].symbol}]`;
-      const query = `CREATE TABLE IF NOT EXISTS ${table} (id INTEGER PRIMARY KEY AUTOINCREMENT, tradeId INTEGER, timestamp INTEGER, price REAL, quantity REAL)`;
-      dbConn.serialize(() => {
-        dbConn.run(query);
-        dbConn.run('BEGIN TRANSACTION');
-        const insertStmt = dbConn.prepare(`INSERT INTO ${table} (tradeId, timestamp, price, quantity) VALUES (?, ?, ?, ?)`);
-        batch.forEach(trade => insertStmt.run(trade.id, trade.timestamp, trade.info.p, trade.info.q));
-        insertStmt.finalize();
-        dbConn.run('COMMIT');
+        const dbConn = this.getDb();
+        const table = `[${batch[0].symbol}]`;
+        const query = `CREATE TABLE IF NOT EXISTS ${table} (id INTEGER PRIMARY KEY AUTOINCREMENT, tradeId INTEGER, timestamp INTEGER, price REAL, quantity REAL)`;
+        dbConn.serialize(() => {
+          dbConn.run(query);
+          dbConn.run('BEGIN TRANSACTION');
+          const insertStmt = dbConn.prepare(`INSERT INTO ${table} (tradeId, timestamp, price, quantity) VALUES (?, ?, ?, ?)`);
+          batch.forEach(trade => insertStmt.run(trade.id, trade.timestamp, trade.info.p, trade.info.q));
+          insertStmt.finalize();
+          dbConn.run('COMMIT');
+        });
+
+        dbConn.close(resolve);
+        Logger.debug(`${batch.length} rows inserted into table`);
       });
-
-      dbConn.close();
-      Logger.debug(`${batch.length} rows inserted into table`);
     } catch (e) {
       Logger.error(e.message);
     }
