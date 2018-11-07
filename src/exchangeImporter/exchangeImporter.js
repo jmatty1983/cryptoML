@@ -1,7 +1,7 @@
 const ccxt = require ('ccxt');
 
 const DataManager = require('../dataManager/dataManager');
-const Logger = require('../Logger/Logger');
+const Logger = require('../logger/logger');
 
 const exchangeImporter = {
     /**

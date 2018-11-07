@@ -125,12 +125,14 @@ const DataManager = {
           dbConn.run(`DROP TABLE IF EXISTS [${table}_${types[i].type}_${types[i].length}]`);  
         }
       });
+
       await new Promise(resolve => dbConn.close(resolve));
       let remainders = {};
+      let offset = 0;
       do {
         rowLen = new Promise(resolve => {
           const dbConn = this.getDb();
-          dbConn.all(`SELECT * FROM [${table}] ORDER BY tradeId ASC LIMIT ${limit}`, [], async (err, rows) => {
+          dbConn.all(`SELECT * FROM [${table}] ORDER BY tradeId ASC LIMIT ${limit} OFFSET ${offset}`, [], async (err, rows) => {
             const candles = types.map(({type, length}) => {
               if (err) {
                 throw(err);
@@ -153,6 +155,7 @@ const DataManager = {
               await this.storeCandles(`${table}_${type}_${length}`, built.candles);
               remainders[`${table}_${type}_${length}`] = built.remainder;
             }
+            offset += limit;
             resolve(rows.length);
           });
         });
