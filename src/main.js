@@ -5,14 +5,14 @@ const DataManager = require('./dataManager/dataManager');
 const Logger = require('./logger/logger');
 
 const args = process.argv.slice(2);
-const actions = ['import', 'ga'];
+const actions = ['import', 'process'];
 
 let fn = args[0];
 let exchange = 'binance';
 
 //Check if a function was specified. If not throw error and exit. If so format it for processing
 if (fn) {
-  fn = fn.toLocaleLowerCase();
+  fn = fn.toLowerCase();
 } else {
   Logger.error(`You must specify an action. Valid options are: ${actions}`);
   process.exit();

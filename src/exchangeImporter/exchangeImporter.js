@@ -11,10 +11,9 @@ const exchangeImporter = {
    * @param {string} exchange - exchange name
    */
   init: function (exchange) {
-    this.exchange = exchange;
     const dataManager = Object.create(DataManager);
     this.dataManager = dataManager;
-    this.exchange = new ccxt[this.exchange]({ enableRateLimit: true });
+    this.exchange = new ccxt[exchange]({ enableRateLimit: true });
     dataManager.init(exchange);
 
     Logger.info('Exchange import initialized.');
