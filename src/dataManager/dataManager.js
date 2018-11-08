@@ -34,8 +34,21 @@ const DataManager = {
     return new Promise(resolve => {
       switch (type) {
         case 'tick':
-          const chunks = _.chunk(rows, length);
-          const remainder = chunks[chunks.length - 1].length < length ? chunks.pop() : null;
+          const tickChunks = _.chunk(rows, length);
+          const tickRemainder = tickChunks[tickChunks.length - 1].length < length ? tickChunks.pop() : null;
+          const tickCandles = tickChunks.map(trades => this.makeCandle(trades));
+          resolve({candles: tickCandles, tickRemainder});
+          break;
+        case 'time':
+          length = this.convertLengthToTime(length);
+          if (!length) {
+            throw('Invalid time duration');
+          }
+        case 'volume':
+        case 'currency':
+          const toChunks = this.makeToChunksReducer(type, length);
+          const chunks = rows.reduce(toChunks, [[]]);
+          const remainder = chunks.pop();
           const candles = chunks.map(trades => this.makeCandle(trades));
           resolve({candles, remainder});
           break;
@@ -43,6 +56,28 @@ const DataManager = {
           throw(`Invalid candle type ${type}`);
       }
     });
+  },
+
+  /**
+   * Converts a length string like 5s, 5m, 5h, 5d to milliseconds
+   * @param {string} length
+   * @returns {integer}
+   */
+  convertLengthToTime: function (length) {
+    const unit = length[length.length - 1];
+    const number = length.slice(0, -1);
+    switch (unit) {
+      case 's':
+        return number * 1000;
+      case 'm':
+        return number * 1000 * 60;
+      case 'h':
+        return number * 1000 * 60 * 60;
+      case 'd':
+        return number * 1000 * 60 * 60 * 24;
+      default:
+        return null;
+    }
   },
 
   /**
@@ -105,6 +140,57 @@ const DataManager = {
 
       return acc;
     }, {volume: 0, high: 0, low: Infinity});
+  },
+
+  /**
+   * Makes a comparator to be used in making chunks for candle processing
+   * @param {string} type - time|volume|currency
+   * @param {integer} length - length for determining candle boundries
+   * @return {function} - returns a comparater function with two inputs
+   * the first is the current trade to check and the second is the current chunk being checked
+   * to see if it can have the trade added or if a new candle needs to be started
+   */
+  makeChunkComparator: (type, length) => {
+    switch (type) {
+      case 'time':
+        return (trade, chunk) => {
+          return trade.timestamp - chunk[0].timestamp < length; 
+        };
+      case 'volume':
+        return (trade, chunk) => {
+          return chunk.reduce((total, item) => total += item.volume, 0) + trade.volume < length;
+        };
+      case 'currency':
+        return (trade, chunk) => {
+          return chunk.reduce((total, item) => total += item.price * item.quantity, 0) + trade.price * trade.quantity < length;
+        };
+    }
+  },
+
+  /**
+   * Makes a reducer for candle processing
+   * @param {string} type - time|volume|currency
+   * @param {integer} length - sets the boundry for creating a new candle
+   * @returns {function} - returns a reducer function to be used for creating
+   * chunks for candle processing
+   */
+  makeToChunksReducer: (type, length) => {
+    const comparator = this.makeChunkComparator(type, length);
+    return (chunks, row) => {
+      const current = chunks[chunks.length - 1];
+
+      if (current.length) {
+        if (comparator(row, current)) {
+          current.push(row);
+        } else {
+          chunks.push([row]);
+        }
+      } else {
+        current.push(row);
+      }
+
+      return chunks;
+    };
   },
 
   /**

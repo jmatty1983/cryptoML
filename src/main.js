@@ -1,8 +1,8 @@
 require('dotenv-safe').config();
 
-const ExchangeImport = require('./src/exchangeImporter/exchangeImporter');
-const DataManager = require('./src/dataManager/dataManager');
-const Logger = require('./src/logger/logger');
+const ExchangeImport = require('./exchangeImporter/exchangeImporter');
+const DataManager = require('./dataManager/dataManager');
+const Logger = require('./logger/logger');
 
 const args = process.argv.slice(2);
 const actions = ['import', 'ga'];
