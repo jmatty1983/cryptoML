@@ -266,11 +266,9 @@ const DataManager = {
       const dbConn = this.getDb();
       dbConn.serialize(() => {
         for (let i = 0; i < types.length; i++) {
-          dbConn.run(
-            `DROP TABLE IF EXISTS [${table}_${types[i].type}_${
-              types[i].length
-            }]`
-          );
+          const type = types[i].type;
+          const len = types[i].length;
+          dbConn.run(`DROP TABLE IF EXISTS [${table}_${type}_${len}]`);
         }
       });
 
