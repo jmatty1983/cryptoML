@@ -110,33 +110,31 @@ const DataManager = {
     });
   },
 
-  loadCandles: function({
-    table,
-    fromId,
-    fromTime,
-    tick,
-    time,
-    volume,
-    currency
-  }) {
-    if (!fromId && !fromTime) {
-      fromId = 1;
-    }
+  /**
+   * Loads candles from the data base
+   * @param {string} table - Table name
+   * @param {integer=0} from - tradeId to start from
+   * @returns {array} - returns an array of candles
+   */
+  loadCandles: function(table, from = 0) {
+    try {
+      const dbConn = this.getDb();
 
-    if (!tick && !time && !volume && !currency) {
-      tick = 233;
-    }
-
-    //const dbConn = this.getDb();
-
-    if (tick) {
-      //TODO: Tick Candles
-    } else if (time) {
-      //TODO: Time candles
-    } else if (volume) {
-      //TODO: Volume candles
-    } else if (currency) {
-      //TODO: Currency candles
+      return new Promise(resolve => {
+        dbConn.all(
+          `SELECT * FROM ${table} ORDER BY tradeId`,
+          [],
+          (err, rows) => {
+            if (err) {
+              throw err;
+            }
+            dbConn.close();
+            resolve(rows);
+          }
+        );
+      });
+    } catch (e) {
+      Logger.error(e.message);
     }
   },
 
@@ -154,7 +152,7 @@ const DataManager = {
         acc.high = trade.price > acc.high ? trade.price : acc.high;
         acc.low = trade.price < acc.low ? trade.price : acc.low;
         acc.volume += trade.quantity;
-        acc.tradeId = acc.tradeId;
+        acc.tradeId = trade.tradeId;
         return acc;
       },
       { volume: 0, high: 0, low: Infinity }
