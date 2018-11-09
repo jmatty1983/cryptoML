@@ -6,12 +6,25 @@
   "scripts": {
     "start": "node src/main"
   },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,json,css,md}": [
+      "prettier --write",
+      "git add"
+    ]
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "ccxt": "^1.17.458",
     "dotenv-safe": "^6.1.0",
+    "husky": "^1.1.3",
+    "lint-staged": "^8.0.4",
     "lodash": "^4.17.11",
     "prettier": "^1.14.3",
     "sqlite3": "^4.0.3",

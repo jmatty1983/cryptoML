@@ -1,7 +1,7 @@
-const db = require('sqlite3');
-const _ = require('lodash');
+const db = require("sqlite3");
+const _ = require("lodash");
 
-const Logger = require('../logger/logger');
+const Logger = require("../logger/logger");
 
 const dataDir = process.env.DATA_DIR;
 const dbExt = process.env.DB_EXT;
@@ -12,14 +12,14 @@ const DataManager = {
    * Constructor for OLOO style behavior delgation.
    * @param {string} dbFile - data base file name
    */
-  init: function (dbFile) {
+  init: function(dbFile) {
     if (!dbFile || !dataDir || !dbExt) {
-      Logger.error('Database or exchange is undefined');
+      Logger.error("Database or exchange is undefined");
     } else {
       this.dbFile = dbFile;
     }
 
-    Logger.info('Data manager initialized.');
+    Logger.info("Data manager initialized.");
   },
 
   /**
@@ -27,33 +27,36 @@ const DataManager = {
    * @param {string tick|time|volume|currency} type - type of candle
    * @param {integer} length - length of candle
    * @param {array{}} data - array of trade objects
-   * 
+   *
    * @returns {promise} Promise object contains {candles - new candles, remaineder - unprocessed trades at tail end}
    */
-  buildCandles: function ({type, length, rows}) {
+  buildCandles: function({ type, length, rows }) {
     return new Promise(resolve => {
       switch (type) {
-        case 'tick':
+        case "tick":
           const tickChunks = _.chunk(rows, length);
-          const tickRemainder = tickChunks[tickChunks.length - 1].length < length ? tickChunks.pop() : null;
+          const tickRemainder =
+            tickChunks[tickChunks.length - 1].length < length
+              ? tickChunks.pop()
+              : null;
           const tickCandles = tickChunks.map(trades => this.makeCandle(trades));
-          resolve({candles: tickCandles, tickRemainder});
+          resolve({ candles: tickCandles, tickRemainder });
           break;
-        case 'time':
+        case "time":
           length = this.convertLengthToTime(length);
           if (!length) {
-            throw('Invalid time duration');
+            throw "Invalid time duration";
           }
-        case 'volume':
-        case 'currency':
+        case "volume":
+        case "currency":
           const toChunks = this.makeToChunksReducer(type, length);
           const chunks = rows.reduce(toChunks, [[]]);
           const remainder = chunks.pop();
           const candles = chunks.map(trades => this.makeCandle(trades));
-          resolve({candles, remainder});
+          resolve({ candles, remainder });
           break;
         default:
-          throw(`Invalid candle type ${type}`);
+          throw `Invalid candle type ${type}`;
       }
     });
   },
@@ -63,17 +66,17 @@ const DataManager = {
    * @param {string} length
    * @returns {integer}
    */
-  convertLengthToTime: function (length) {
+  convertLengthToTime: function(length) {
     const unit = length[length.length - 1];
     const number = length.slice(0, -1);
     switch (unit) {
-      case 's':
+      case "s":
         return number * 1000;
-      case 'm':
+      case "m":
         return number * 1000 * 60;
-      case 'h':
+      case "h":
         return number * 1000 * 60 * 60;
-      case 'd':
+      case "d":
         return number * 1000 * 60 * 60 * 24;
       default:
         return null;
@@ -82,10 +85,11 @@ const DataManager = {
 
   /**
    * Returns a live sqlite connection
+   * @returns {sqlite3 connection instance}
    */
-  getDb: function () {
+  getDb: function() {
     const dbConn = new db.Database(`${dataDir}${this.dbFile}${dbExt}`);
-    dbConn.run('PRAGMA journal_mode = WAL');
+    dbConn.run("PRAGMA journal_mode = WAL");
     return dbConn;
   },
 
@@ -94,15 +98,27 @@ const DataManager = {
    * @param {string} table
    * @returns {integer}
    */
-  getNewestTrade: function (table) {
+  getNewestTrade: function(table) {
     return new Promise(resolve => {
       dbConn = this.getDb();
-      dbConn.each(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`, [], (err, row) => resolve(row && row.lastId ? row.lastId : 0));
+      dbConn.each(
+        `SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`,
+        [],
+        (err, row) => resolve(row && row.lastId ? row.lastId : 0)
+      );
       dbConn.close();
     });
   },
 
-  loadCandles: function ({table, fromId, fromTime, tick, time, volume, currency}) {
+  loadCandles: function({
+    table,
+    fromId,
+    fromTime,
+    tick,
+    time,
+    volume,
+    currency
+  }) {
     if (!fromId && !fromTime) {
       fromId = 1;
     }
@@ -124,22 +140,25 @@ const DataManager = {
     }
   },
 
-  /** 
+  /**
    * Candle is a candle is a candle is a candle. All get built the same, only difference is
    * how we decide which trades to build them from
    * @param {array{}} - array of trade objects
    * @returns {object} - returns a candle object of type OHLCV
    */
-  makeCandle: function (trades) {
-    return trades.reduce((acc, trade) => {
-      acc.open = acc.open || trade.price;
-      acc.close = trade.price;
-      acc.high = trade.price > acc.high ? trade.price : acc.high;
-      acc.low = trade.price < acc.low ? trade.price : acc.low;
-      acc.volume += trade.quantity;
-
-      return acc;
-    }, {volume: 0, high: 0, low: Infinity});
+  makeCandle: function(trades) {
+    return trades.reduce(
+      (acc, trade) => {
+        acc.open = acc.open || trade.price;
+        acc.close = trade.price;
+        acc.high = trade.price > acc.high ? trade.price : acc.high;
+        acc.low = trade.price < acc.low ? trade.price : acc.low;
+        acc.volume += trade.quantity;
+        acc.tradeId = acc.tradeId;
+        return acc;
+      },
+      { volume: 0, high: 0, low: Infinity }
+    );
   },
 
   /**
@@ -150,20 +169,23 @@ const DataManager = {
    * the first is the current trade to check and the second is the current chunk being checked
    * to see if it can have the trade added or if a new candle needs to be started
    */
-  makeChunkComparator: (type, length) => {
+  makeChunkComparator: function(type, length) {
     switch (type) {
-      case 'time':
-        return (trade, chunk) => {
-          return trade.timestamp - chunk[0].timestamp < length; 
-        };
-      case 'volume':
-        return (trade, chunk) => {
-          return chunk.reduce((total, item) => total += item.volume, 0) + trade.volume < length;
-        };
-      case 'currency':
-        return (trade, chunk) => {
-          return chunk.reduce((total, item) => total += item.price * item.quantity, 0) + trade.price * trade.quantity < length;
-        };
+      case "time":
+        return (trade, chunk) => trade.timestamp - chunk[0].timestamp < length;
+      case "volume":
+        return (trade, chunk) =>
+          chunk.reduce((total, item) => (total += item.quantity), 0) +
+            trade.quantity <
+          length;
+      case "currency":
+        return (trade, chunk) =>
+          chunk.reduce(
+            (total, item) => (total += item.price * item.quantity),
+            0
+          ) +
+            trade.price * trade.quantity <
+          length;
     }
   },
 
@@ -174,8 +196,9 @@ const DataManager = {
    * @returns {function} - returns a reducer function to be used for creating
    * chunks for candle processing
    */
-  makeToChunksReducer: (type, length) => {
+  makeToChunksReducer: function(type, length) {
     const comparator = this.makeChunkComparator(type, length);
+
     return (chunks, row) => {
       const current = chunks[chunks.length - 1];
 
@@ -183,7 +206,42 @@ const DataManager = {
         if (comparator(row, current)) {
           current.push(row);
         } else {
-          chunks.push([row]);
+          //These could be optimized but to be honest I ran out of patience with it.
+          //I tested and they appear to be working. I might revisit in the future
+          //... but probably not.
+          if (type === "volume") {
+            const total = current.reduce(
+              (total, item) => (total += item.quantity),
+              0
+            );
+            const firstHalf = {
+              ...row,
+              quantity: length - total
+            };
+            const secondHalf = {
+              ...row,
+              quantity: row.quantity - firstHalf.quantity
+            };
+            current.push(firstHalf);
+            chunks.push([secondHalf]);
+          } else if (type === "currency") {
+            const total = current.reduce(
+              (total, item) => (total += item.price * item.quantity),
+              0
+            );
+            const firstHalf = {
+              ...row,
+              quantity: (length - total) / row.price
+            };
+            const secondHalf = {
+              ...row,
+              quantity: row.quantity - firstHalf.quantity
+            };
+            current.push(firstHalf);
+            chunks.push([secondHalf]);
+          } else {
+            chunks.push([row]);
+          }
         }
       } else {
         current.push(row);
@@ -202,13 +260,17 @@ const DataManager = {
    *   length: number
    * }]
    */
-  processCandles: async function (table, types) {
+  processCandles: async function(table, types) {
     try {
       let rowLen;
       const dbConn = this.getDb();
       dbConn.serialize(() => {
         for (let i = 0; i < types.length; i++) {
-          dbConn.run(`DROP TABLE IF EXISTS [${table}_${types[i].type}_${types[i].length}]`);  
+          dbConn.run(
+            `DROP TABLE IF EXISTS [${table}_${types[i].type}_${
+              types[i].length
+            }]`
+          );
         }
       });
 
@@ -218,34 +280,47 @@ const DataManager = {
       do {
         rowLen = new Promise(resolve => {
           const dbConn = this.getDb();
-          dbConn.all(`SELECT * FROM [${table}] ORDER BY tradeId ASC LIMIT ${limit} OFFSET ${offset}`, [], async (err, rows) => {
-            const candles = types.map(({type, length}) => {
-              if (err) {
-                throw(err);
-              }
+          dbConn.all(
+            `SELECT * FROM [${table}] ORDER BY tradeId ASC LIMIT ${limit} OFFSET ${offset}`,
+            [],
+            async (err, rows) => {
+              const candles = types.map(({ type, length }) => {
+                if (err) {
+                  throw err;
+                }
 
-              return new Promise(async resolve => {
-                const extra = remainders[`${table}_${type}_${length}`] ? remainders[`${table}_${type}_${length}`] : [];
+                return new Promise(async resolve => {
+                  const extra = remainders[`${table}_${type}_${length}`]
+                    ? remainders[`${table}_${type}_${length}`]
+                    : [];
 
-                const built = await this.buildCandles({type, length, rows: [...extra, ...rows]});
-                resolve({ type, length, built });
+                  const built = await this.buildCandles({
+                    type,
+                    length,
+                    rows: [...extra, ...rows]
+                  });
+                  resolve({ type, length, built });
+                });
               });
-            });
-            dbConn.close();
+              dbConn.close();
 
-            const allCandles = await Promise.all(candles);
-            //this makes me so unhappy
-            remainders = {};
-            for (let i = 0; i < allCandles.length; i++) {
-              const {type, length, built} = allCandles[i];
-              await this.storeCandles(`${table}_${type}_${length}`, built.candles);
-              remainders[`${table}_${type}_${length}`] = built.remainder;
+              const allCandles = await Promise.all(candles);
+              //this makes me so unhappy
+              remainders = {};
+              for (let i = 0; i < allCandles.length; i++) {
+                const { type, length, built } = allCandles[i];
+                await this.storeCandles(
+                  `${table}_${type}_${length}`,
+                  built.candles
+                );
+                remainders[`${table}_${type}_${length}`] = built.remainder;
+              }
+              offset += limit;
+              resolve(rows.length);
             }
-            offset += limit;
-            resolve(rows.length);
-          });
+          );
         });
-      } while (await rowLen === limit)
+      } while ((await rowLen) === limit);
     } catch (e) {
       Logger.error(e.message);
     }
@@ -256,26 +331,31 @@ const DataManager = {
    * @param {string} table - table name
    * @param {array{}} candles - array of candle objects
    */
-  storeCandles: async function (table, candles) {
+  storeCandles: async function(table, candles) {
     return new Promise(resolve => {
       try {
         if (!this.dbFile) {
-          throw('Database file unspecified');
+          throw "Database file unspecified";
         }
 
         const dbConn = this.getDb();
         dbConn.serialize(() => {
-          dbConn.run(`CREATE TABLE IF NOT EXISTS [${table}] (id INTEGER PRIMARY KEY AUTOINCREMENT, open REAL, close REAL, high REAL, low REAL, volume REAL)`);
-          dbConn.run('BEGIN TRANSACTION');
-          const insertStmt = dbConn.prepare(`INSERT INTO [${table}] (open, close, high, low, volume) VALUES (?, ?, ?, ?, ?)`);
-          candles.forEach(candle => insertStmt.run(candle.open, candle.close, candle.high, candle.low, candle.volume));
+          dbConn.run(
+            `CREATE TABLE IF NOT EXISTS [${table}] (id INTEGER PRIMARY KEY AUTOINCREMENT, open REAL, close REAL, high REAL, low REAL, volume REAL, tradeId INTEGER)`
+          );
+          dbConn.run("BEGIN TRANSACTION");
+          const insertStmt = dbConn.prepare(
+            `INSERT INTO [${table}] (open, close, high, low, volume, tradeId) VALUES (?, ?, ?, ?, ?, ?)`
+          );
+          candles.forEach(({ open, close, high, low, volume, tradeId }) =>
+            insertStmt.run(open, close, high, low, volume, tradeId)
+          );
           insertStmt.finalize();
-          dbConn.run('COMMIT');
+          dbConn.run("COMMIT");
         });
-      
         dbConn.close(resolve);
-        
-        Logger.debug(`${candles.length} added to ${table}`)
+
+        Logger.debug(`${candles.length} added to ${table}`);
       } catch (e) {
         Logger.error(e.message);
       }
@@ -286,27 +366,40 @@ const DataManager = {
    * Stores a batch of trades in the sqlite db
    * @param {array} batch - batch of trades
    */
-  storeTrades: async function (batch) {
+  storeTrades: async function(batch) {
     try {
       return new Promise(resolve => {
         if (!this.dbFile) {
-          throw('Database file unspecified');
+          throw "Database file unspecified";
         }
 
         if (!batch || !batch.length) {
-          throw('Data must be specified and an array');
+          throw "Data must be specified and an array";
         }
 
         const dbConn = this.getDb();
-        const table = `[${batch[0].symbol}]`;
-        const query = `CREATE TABLE IF NOT EXISTS ${table} (id INTEGER PRIMARY KEY AUTOINCREMENT, tradeId INTEGER, timestamp INTEGER, price REAL, quantity REAL)`;
+        const table = `${batch[0].symbol}`;
         dbConn.serialize(() => {
-          dbConn.run(query);
-          dbConn.run('BEGIN TRANSACTION');
-          const insertStmt = dbConn.prepare(`INSERT INTO ${table} (tradeId, timestamp, price, quantity) VALUES (?, ?, ?, ?)`);
-          batch.forEach(trade => insertStmt.run(trade.id, trade.timestamp, trade.info.p, trade.info.q));
+          dbConn.run(
+            `CREATE TABLE IF NOT EXISTS [${table}] (id INTEGER PRIMARY KEY AUTOINCREMENT, tradeId INTEGER, timestamp INTEGER, price REAL, quantity REAL)`
+          );
+          dbConn.run(
+            `CREATE UNIQUE INDEX IF NOT EXISTS [${table}_tradeId] ON [${table}] (tradeId)`
+          );
+          dbConn.run("BEGIN TRANSACTION");
+          const insertStmt = dbConn.prepare(
+            `INSERT INTO [${table}] (tradeId, timestamp, price, quantity) VALUES (?, ?, ?, ?)`
+          );
+          batch.forEach(trade =>
+            insertStmt.run(
+              trade.id,
+              trade.timestamp,
+              trade.info.p,
+              trade.info.q
+            )
+          );
           insertStmt.finalize();
-          dbConn.run('COMMIT');
+          dbConn.run("COMMIT");
         });
 
         dbConn.close(resolve);
