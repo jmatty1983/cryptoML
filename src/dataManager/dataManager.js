@@ -1,6 +1,9 @@
 const db = require("sqlite3");
 const _ = require("lodash");
 
+const ArrayUtils = require("../lib/array");
+const Indicators = require("./indicators");
+
 const Logger = require("../logger/logger");
 
 const dataDir = process.env.DATA_DIR;
@@ -113,7 +116,7 @@ const DataManager = {
   /**
    * Loads candles from the data base
    * @param {string} table - Table name
-   * @param {integer=0} from - tradeId to start from
+   * @param {integer=0} from - tradeId to start from - ignored for now
    * @returns {array} - returns an array of candles
    */
   loadCandles: function(table, from = 0) {
@@ -136,6 +139,26 @@ const DataManager = {
     } catch (e) {
       Logger.error(e.message);
     }
+  },
+
+  loadData: async function(pair, type, length, indicators) {
+    const candles = await this.loadCandles(
+      `[${pair.toUpperCase()}_${type.toLowerCase()}_${length.toLowerCase()}]`
+    );
+    const candleArrays = [
+      ArrayUtils.getProp("open", candles),
+      ArrayUtils.getProp("close", candles),
+      ArrayUtils.getProp("high", candles),
+      ArrayUtils.getProp("low", candles),
+      ArrayUtils.getProp("volume", candles)
+    ];
+
+    indicators.forEach(indicator =>
+      candleArrays.push(
+        Indicators[indicator.name](...indicator.params, candleArrays)
+      )
+    );
+    return candleArrays;
   },
 
   /**

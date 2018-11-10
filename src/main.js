@@ -29,6 +29,7 @@ switch (fn) {
       Logger.error("No pair provided");
     }
     break;
+
   case "process":
     try {
       if (!args[1]) {
@@ -54,27 +55,37 @@ switch (fn) {
       Logger.error(e.message);
     }
     break;
+
   case "ga":
-    if (!args[1]) {
-      throw "No pair specified";
-    }
+    try {
+      if (!args[1]) {
+        throw "No pair specified";
+      }
 
-    if (!args[2]) {
-      throw "No candle type specified";
-    }
+      if (!args[2]) {
+        throw "No candle type specified";
+      }
 
-    if (!args[3]) {
-      throw "No length specified";
-    }
+      if (!args[3]) {
+        throw "No length specified";
+      }
 
-    const dataManager = Object.create(DataManager);
-    dataManager.init(exchange);
-    dataManager
-      .loadCandles(
-        `[${args[1].toUpperCase()}_${args[2].toLowerCase()}_${args[3].toLowerCase()}]`
-      )
-      .then(data => console.log(data.length));
-    break;
+      const dataManager = Object.create(DataManager);
+      dataManager.init(exchange);
+      const indicators = [
+        {
+          name: "sma",
+          params: [7]
+        }
+      ];
+
+      dataManager
+        .loadData(args[1], args[2], args[3], indicators)
+        .then(console.log);
+      break;
+    } catch (e) {
+      Logger.error(e.message);
+    }
   default:
     Logger.error(`Invalid action ${fn}. Valid options are: ${actions}`);
 }
