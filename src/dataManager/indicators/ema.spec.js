@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const ema = require("./ema");
 const deepFreeze = require("deep-freeze");
 
-describe("Simple Moving Average", () => {
+describe("Exponential Moving Average", () => {
   it("should be defined", () => {
     expect(ema).not.to.be.undefined;
   });
