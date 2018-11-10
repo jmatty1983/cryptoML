@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const sma = require("./sma");
+const deepFreeze = require("deep-freeze");
 
 describe("Simple Moving Average", () => {
   it("should be defined", () => {
@@ -7,7 +8,7 @@ describe("Simple Moving Average", () => {
   });
 
   it("should return an array of values for the moving average", () => {
-    const array = [...Array(10).keys()];
+    const array = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     const candles = [
       [...array],
       [...array],
@@ -15,7 +16,8 @@ describe("Simple Moving Average", () => {
       [...array],
       [...array]
     ];
-    const expectedReturn = [...Array(8).keys()].map(item => item + 1);
+    deepFreeze(candles);
+    const expectedReturn = [1, 2, 3, 4, 5, 6, 7, 8];
 
     expect(sma(3, candles)).to.eql(expectedReturn);
   });
