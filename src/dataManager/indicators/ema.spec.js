@@ -26,7 +26,8 @@ describe("Exponential Moving Average", () => {
       4.03125,
       5.015625,
       6.0078125,
-      7.00390625
+      7.00390625,
+      8.001953125
     ];
 
     expect(ema(3, candles)).to.eql(expectedReturn);

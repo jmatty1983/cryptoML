@@ -1,22 +1,22 @@
-const ccxt = require ('ccxt');
+const ccxt = require("ccxt");
 
-const DataManager = require('../dataManager/dataManager');
-const Logger = require('../logger/logger');
+const DataManager = require("../dataManager/dataManager");
+const Logger = require("../logger/logger");
 
 const limit = 1000;
 
 const exchangeImporter = {
-    /**
+  /**
    * Constructor for OLOO style behavior delgation.
    * @param {string} exchange - exchange name
    */
-  init: function (exchange) {
+  init: function(exchange) {
     const dataManager = Object.create(DataManager);
     this.dataManager = dataManager;
     this.exchange = new ccxt[exchange]({ enableRateLimit: true });
     dataManager.init(exchange);
 
-    Logger.info('Exchange import initialized.');
+    Logger.info("Exchange import initialized.");
   },
 
   /**
@@ -24,13 +24,16 @@ const exchangeImporter = {
    * @param {integer} fromId - id of trade to start with
    * @param {string} pair - pair to import
    */
-  fetchTrades: async function (fromId, pair) {
+  fetchTrades: async function(fromId, pair) {
     try {
-      batch = await this.exchange.fetchTrades(pair, undefined, undefined, {fromId, limit});
+      batch = await this.exchange.fetchTrades(pair, undefined, undefined, {
+        fromId,
+        limit
+      });
       await this.dataManager.storeTrades(batch);
       return batch.length;
     } catch (e) {
-      if (e.message.indexOf('request timed out') !== -1) {
+      if (e instanceof ccxt.RequestTimeout) {
         //try again on timeout
         await this.fetchTrades(fromId, pair);
       }
@@ -41,7 +44,7 @@ const exchangeImporter = {
    * Imports all trade data for a pair from an exchange
    * @param {string} pair
    */
-  getPair: async function (pair) {
+  getPair: async function(pair) {
     try {
       if (pair) {
         pair = pair.toUpperCase();
@@ -65,7 +68,7 @@ const exchangeImporter = {
 
         Logger.info(`${fromId - 1000 + amt - lastId} trades imported`);
       } else {
-        throw('Must specify a pair');
+        throw "Must specify a pair";
       }
     } catch (e) {
       Logger.error(e.message);

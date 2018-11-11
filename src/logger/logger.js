@@ -1,6 +1,7 @@
 const { createLogger, format, transports } = require("winston");
 const { combine, timestamp, printf, colorize } = format;
 
+/* istanbul ignore next */
 const outputFormat = printf(
   info => `${info.timestamp} ${info.level}: ${info.message}`
 );

@@ -1,5 +1,5 @@
 const EMA = (length, [, closes]) =>
-  closes.slice(1, closes.length - 1).reduce(
+  closes.slice(1).reduce(
     (ema, item) => {
       const multipier = 2 / (length + 1);
       const lastEma = ema[ema.length - 1];
