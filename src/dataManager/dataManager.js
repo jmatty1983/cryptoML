@@ -17,6 +17,8 @@ const DataManager = {
       Logger.error("Database or exchange is undefined");
     } else {
       this.dbFile = dbFile;
+      this.dataDir = dataDir;
+      this.dbExt = dbExt;
     }
 
     Logger.info("Data manager initialized.");
@@ -88,7 +90,9 @@ const DataManager = {
    * @returns {sqlite3 connection instance}
    */
   getDb: function() {
-    const dbConn = new db.Database(`${dataDir}${this.dbFile}${dbExt}`);
+    const dbConn = new db.Database(
+      `${this.dataDir}${this.dbFile}${this.dbExt}`
+    );
     dbConn.run("PRAGMA journal_mode = WAL");
     return dbConn;
   },

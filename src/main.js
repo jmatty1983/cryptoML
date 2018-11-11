@@ -25,7 +25,7 @@ switch (fn) {
     //import requires a pair to be specified
     if (args[1]) {
       const exchangeImport = Object.create(ExchangeImport);
-      exchangeImport.init(exchange);
+      exchangeImport.init(exchange, dataDir, dbExt);
       exchangeImport.getPair(args[1]);
     } else {
       Logger.error("No pair provided");
@@ -73,7 +73,7 @@ switch (fn) {
       }
 
       const dataManager = Object.create(DataManager);
-      dataManager.init(exchange);
+      dataManager.init(exchange, dataDir, dbExt);
       const indicators = [
         {
           name: "sma",
