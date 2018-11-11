@@ -1,4 +1,6 @@
 require("dotenv-safe").config();
+const dataDir = process.env.DATA_DIR;
+const dbExt = process.env.DB_EXT;
 
 const ExchangeImport = require("./exchangeImporter/exchangeImporter");
 const DataManager = require("./dataManager/dataManager");
@@ -45,7 +47,7 @@ switch (fn) {
       }
 
       const dataManager = Object.create(DataManager);
-      dataManager.init(exchange);
+      dataManager.init(exchange, dataDir, dbExt);
 
       const types = args[3]
         .split(",")

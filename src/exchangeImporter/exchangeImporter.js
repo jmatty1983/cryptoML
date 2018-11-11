@@ -10,11 +10,11 @@ const exchangeImporter = {
    * Constructor for OLOO style behavior delgation.
    * @param {string} exchange - exchange name
    */
-  init: function(exchange) {
+  init: function(exchange, dataDir, dbExt) {
     const dataManager = Object.create(DataManager);
     this.dataManager = dataManager;
     this.exchange = new ccxt[exchange]({ enableRateLimit: true });
-    dataManager.init(exchange);
+    dataManager.init(exchange, dataDir, dbExt);
 
     Logger.info("Exchange import initialized.");
   },

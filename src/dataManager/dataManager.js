@@ -3,11 +3,8 @@ const _ = require("lodash");
 
 const ArrayUtils = require("../lib/array");
 const Indicators = require("./indicators");
-
 const Logger = require("../logger/logger");
 
-const dataDir = process.env.DATA_DIR;
-const dbExt = process.env.DB_EXT;
 const limit = 100000;
 
 const DataManager = {
@@ -15,7 +12,7 @@ const DataManager = {
    * Constructor for OLOO style behavior delgation.
    * @param {string} dbFile - data base file name
    */
-  init: function(dbFile) {
+  init: function(dbFile, dataDir, dbExt) {
     if (!dbFile || !dataDir || !dbExt) {
       Logger.error("Database or exchange is undefined");
     } else {

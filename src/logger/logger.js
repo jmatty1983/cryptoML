@@ -6,6 +6,7 @@ const outputFormat = printf(
   info => `${info.timestamp} ${info.level}: ${info.message}`
 );
 
+/* istanbul ignore next */
 const Logger = createLogger({
   level: process.env.LOG_LEVEL || "info",
   silent: process.env.ENV === "test",
