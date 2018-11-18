@@ -85,6 +85,7 @@ const DataManager = {
     }
   },
 
+  /* istanbul ignore next */
   /**
    * Returns a live sqlite connection
    * @returns {sqlite3 connection instance}
