@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "node src/main",
-    "test": "nyc mocha -c \"./src/**/*.spec.js*\""
+    "test": "nyc mocha -c \"./src/**/*.spec.js*\" && nyc report --reporter=html"
   },
   "husky": {
     "hooks": {
@@ -17,6 +17,9 @@
       "prettier --write",
       "git add"
     ]
+  },
+  "nyc": {
+    "exclude": "**/*.spec.js"
   },
   "keywords": [],
   "author": "",

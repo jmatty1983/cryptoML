@@ -32,3 +32,4 @@ docs/
 
 # Coverage info
 .nyc_output/
+coverage/

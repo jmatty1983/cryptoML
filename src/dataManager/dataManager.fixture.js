@@ -1,4 +1,4 @@
-exports.tradeInput = [
+const tradeInput = [
   {
     id: 1,
     tradeId: 1,
@@ -85,7 +85,7 @@ exports.tradeInput = [
   }
 ];
 
-exports.tickOutput = {
+const tickOutput = {
   candles: [
     {
       volume: 111.10000000000001,
@@ -139,7 +139,7 @@ exports.tickOutput = {
   tickRemainder: null
 };
 
-exports.timeOutput = {
+const timeOutput = {
   candles: [
     {
       volume: 224.18,
@@ -209,7 +209,7 @@ exports.timeOutput = {
   ]
 };
 
-exports.volumeOutput = {
+const volumeOutput = {
   candles: [
     {
       volume: 10,
@@ -311,7 +311,7 @@ exports.volumeOutput = {
   ]
 };
 
-exports.currencyOutput = {
+const currencyOutput = {
   candles: [
     {
       volume: 9.94138136942675,
@@ -411,4 +411,196 @@ exports.currencyOutput = {
       quantity: 765.9381021341462
     }
   ]
+};
+
+const candleData = [
+  {
+    id: 1,
+    open: 1.0058,
+    close: 1.01,
+    high: 1.05,
+    low: 1.0,
+    volume: 94431.02,
+    tradeId: 267
+  },
+  {
+    id: 2,
+    open: 1.0109,
+    close: 1.0061,
+    high: 1.0122,
+    low: 1.0061,
+    volume: 86105.07,
+    tradeId: 482
+  },
+  {
+    id: 3,
+    open: 1.0065,
+    close: 1.0067,
+    high: 1.0097,
+    low: 1.0047,
+    volume: 109034.8,
+    tradeId: 737
+  },
+  {
+    id: 4,
+    open: 1.0066,
+    close: 1.0038,
+    high: 1.01,
+    low: 1.002,
+    volume: 222153.41,
+    tradeId: 1150
+  },
+  {
+    id: 5,
+    open: 1.004,
+    close: 1.0066,
+    high: 1.0071,
+    low: 1.003,
+    volume: 149768.14,
+    tradeId: 1493
+  },
+  {
+    id: 6,
+    open: 1.0066,
+    close: 1.0073,
+    high: 1.0085,
+    low: 1.0058,
+    volume: 108068.79,
+    tradeId: 1768
+  },
+  {
+    id: 7,
+    open: 1.0074,
+    close: 1.0084,
+    high: 1.01,
+    low: 1.0066,
+    volume: 130254.03,
+    tradeId: 2064
+  },
+  {
+    id: 8,
+    open: 1.009,
+    close: 1.0083,
+    high: 1.0091,
+    low: 1.0075,
+    volume: 69910.69,
+    tradeId: 2348
+  },
+  {
+    id: 9,
+    open: 1.0078,
+    close: 1.0072,
+    high: 1.0109,
+    low: 1.0069,
+    volume: 90891.92,
+    tradeId: 2604
+  },
+  {
+    id: 10,
+    open: 1.0091,
+    close: 1.0088,
+    high: 1.0106,
+    low: 1.0073,
+    volume: 42802.76,
+    tradeId: 2780
+  }
+];
+
+const candleArrays = [
+  [
+    1.0058,
+    1.0109,
+    1.0065,
+    1.0066,
+    1.004,
+    1.0066,
+    1.0074,
+    1.009,
+    1.0078,
+    1.0091
+  ],
+  [
+    1.01,
+    1.0061,
+    1.0067,
+    1.0038,
+    1.0066,
+    1.0073,
+    1.0084,
+    1.0083,
+    1.0072,
+    1.0088
+  ],
+  [1.05, 1.0122, 1.0097, 1.01, 1.0071, 1.0085, 1.01, 1.0091, 1.0109, 1.0106],
+  [1.0, 1.0061, 1.0047, 1.002, 1.003, 1.0058, 1.0066, 1.0075, 1.0069, 1.0073],
+  [
+    94431.02,
+    86105.07,
+    109034.8,
+    222153.41,
+    149768.14,
+    108068.79,
+    130254.03,
+    69910.69,
+    90891.92,
+    42802.76
+  ]
+];
+
+const candleArraysInd = [
+  [
+    1.0058,
+    1.0109,
+    1.0065,
+    1.0066,
+    1.004,
+    1.0066,
+    1.0074,
+    1.009,
+    1.0078,
+    1.0091
+  ],
+  [
+    1.01,
+    1.0061,
+    1.0067,
+    1.0038,
+    1.0066,
+    1.0073,
+    1.0084,
+    1.0083,
+    1.0072,
+    1.0088
+  ],
+  [1.05, 1.0122, 1.0097, 1.01, 1.0071, 1.0085, 1.01, 1.0091, 1.0109, 1.0106],
+  [1.0, 1.0061, 1.0047, 1.002, 1.003, 1.0058, 1.0066, 1.0075, 1.0069, 1.0073],
+  [
+    94431.02,
+    86105.07,
+    109034.8,
+    222153.41,
+    149768.14,
+    108068.79,
+    130254.03,
+    69910.69,
+    90891.92,
+    42802.76
+  ],
+  [
+    1.0069857142857142,
+    1.0067428571428572,
+    1.0069000000000001,
+    1.0071999999999999
+  ]
+];
+
+module.exports = {
+  tradeInput,
+  tickOutput,
+  timeOutput,
+  volumeOutput,
+  currencyOutput,
+  candleData,
+  candleArrays,
+  candleArraysInd
 };

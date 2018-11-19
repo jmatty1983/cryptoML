@@ -85,11 +85,11 @@ const DataManager = {
     }
   },
 
-  /* istanbul ignore next */
   /**
    * Returns a live sqlite connection
    * @returns {sqlite3 connection instance}
    */
+  /* istanbul ignore next */
   getDb: function() {
     const dbConn = new db.Database(
       `${this.dataDir}${this.dbFile}${this.dbExt}`
@@ -122,28 +122,30 @@ const DataManager = {
    * @returns {array} - returns an array of candles
    */
   loadCandles: function(table, from = 0) {
-    try {
-      const dbConn = this.getDb();
+    const dbConn = this.getDb();
 
-      return new Promise(resolve => {
-        dbConn.all(
-          `SELECT * FROM ${table} ORDER BY tradeId`,
-          [],
-          (err, rows) => {
-            if (err) {
-              throw err;
-            }
-            dbConn.close();
-            resolve(rows);
-          }
-        );
+    return new Promise(resolve => {
+      dbConn.all(`SELECT * FROM ${table} ORDER BY tradeId`, [], (err, rows) => {
+        if (err) {
+          throw err;
+        }
+        dbConn.close();
+        resolve(rows);
       });
-    } catch (e) {
-      Logger.error(e.message);
-    }
+    });
   },
 
-  loadData: async function(pair, type, length, indicators) {
+  /**
+   * Loads candle data
+   *
+   * @param {string} pair - string value of pair to load
+   * @param {string} type - type of candle to load
+   * @param {string} length - length of candle
+   * @param {array} indicators - indicators to use
+   *
+   * @return {array[array]} - an array of arrays with open, close, high, low, volume and any indicators requested
+   */
+  loadData: async function(pair, type, length, indicators = []) {
     const candles = await this.loadCandles(
       `[${pair.toUpperCase()}_${type.toLowerCase()}_${length.toLowerCase()}]`
     );

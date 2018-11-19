@@ -77,7 +77,7 @@ switch (fn) {
       const indicators = [
         {
           name: "sma",
-          params: [7]
+          params: [2]
         }
       ];
 

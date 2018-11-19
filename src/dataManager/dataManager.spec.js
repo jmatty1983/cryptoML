@@ -8,7 +8,10 @@ const {
   tickOutput,
   timeOutput,
   volumeOutput,
-  currencyOutput
+  currencyOutput,
+  candleData,
+  candleArrays,
+  candleArraysInd
 } = require("./dataManager.fixture");
 
 use(sinonChai);
@@ -64,6 +67,12 @@ describe("Data Manager Module", () => {
     expect(await dataManager.buildCandles(buildCandlesInput)).to.eql(
       tickOutput
     );
+
+    buildCandlesInput.rows = [...buildCandlesInput.rows, {}];
+    expect(await dataManager.buildCandles(buildCandlesInput)).to.eql({
+      ...tickOutput,
+      tickRemainder: [{}]
+    });
   });
 
   it("should build time candles appropriately when calling buildCandles with trade data", async () => {
@@ -76,6 +85,25 @@ describe("Data Manager Module", () => {
     expect(await dataManager.buildCandles(buildCandlesInput)).to.eql(
       timeOutput
     );
+  });
+
+  it("should throw when calling buildCandles with time and an invalid time duration", done => {
+    const buildCandlesInput = {
+      type: "time",
+      length: "foo",
+      rows: tradeInput
+    };
+
+    dataManager
+      .buildCandles(buildCandlesInput)
+      .then(data => {
+        expect(data).to.be.undefined;
+        done();
+      })
+      .catch(err => {
+        expect(err).not.to.be.undefined;
+        done();
+      });
   });
 
   it("should build volume candles appropriately when calling buildCandles with trade data", async () => {
@@ -102,14 +130,23 @@ describe("Data Manager Module", () => {
     );
   });
 
-  it("should throw an error if trying to build candles with an invalid type", () => {
+  it("should throw an error if trying to build candles with an invalid type", done => {
     const buildCandlesInput = {
       type: "foo",
       length: "10",
       rows: tradeInput
     };
 
-    expect(dataManager.buildCandles(buildCandlesInput)).to.throw;
+    dataManager
+      .buildCandles(buildCandlesInput)
+      .then(data => {
+        expect(data).to.be.undefined;
+        done();
+      })
+      .catch(err => {
+        expect(err).not.to.be.undefined;
+        done();
+      });
   });
 
   it("should have a convertLengthToTime function", () => {
@@ -132,7 +169,7 @@ describe("Data Manager Module", () => {
   });
 
   it("should return a number when calling getNewestTrade", async () => {
-    sinon.stub(dataManager, "getDb").returns({
+    const dbConnStub = sinon.stub(dataManager, "getDb").returns({
       each: (str, args, fn) => {
         fn(null, { lastId: 16 });
       },
@@ -142,5 +179,127 @@ describe("Data Manager Module", () => {
     });
 
     expect(await dataManager.getNewestTrade("foo")).to.equal(16);
+    dbConnStub.restore();
+  });
+
+  it("should default to 0 if none is found when calling getNewestTrade", async () => {
+    const dbConnStub = sinon.stub(dataManager, "getDb").returns({
+      each: (str, args, fn) => {
+        fn(null, null);
+      },
+      close: () => {
+        return;
+      }
+    });
+
+    expect(await dataManager.getNewestTrade("foo")).to.equal(0);
+    dbConnStub.restore();
+  });
+
+  it("should have a loadCandles function", () => {
+    expect(typeof dataManager.loadCandles).to.equal("function");
+  });
+
+  it("should return candle data when calling loadCandles", async () => {
+    const dbConnStub = sinon.stub(dataManager, "getDb").returns({
+      all: (str, args, fn) => {
+        fn(null, "foo");
+      },
+      close: () => {
+        return;
+      }
+    });
+
+    expect(await dataManager.loadCandles("bar")).to.equal("foo");
+    dbConnStub.restore();
+  });
+
+  it("should throw an error if sql returns an error when calling loadCandles", done => {
+    const dbConnStub = sinon.stub(dataManager, "getDb").returns({
+      all: (str, args, fn) => {
+        fn(true, null);
+      }
+    });
+
+    dataManager
+      .loadCandles("bar")
+      .then(data => {
+        expect(data).to.be.null;
+        dbConnStub.restore();
+        done();
+      })
+      .catch(err => {
+        expect(err).not.to.be.null;
+        dbConnStub.restore();
+        done();
+      });
+  });
+
+  it("should have a loadData function", () => {
+    expect(typeof dataManager.loadData).to.equal("function");
+  });
+
+  it("should return data in the expected format when calling loadData", async () => {
+    const loadCandlesStub = sinon
+      .stub(dataManager, "loadCandles")
+      .returns(Promise.resolve(candleData));
+    const indicators = [
+      {
+        name: "sma",
+        params: [7]
+      }
+    ];
+
+    expect(await dataManager.loadData("foo", "time", "1h")).to.eql(
+      candleArrays
+    );
+    expect(await dataManager.loadData("foo", "time", "1h", indicators)).to.eql(
+      candleArraysInd
+    );
+    loadCandlesStub.restore();
+  });
+
+  it("should have a makeCandle function", () => {
+    expect(typeof dataManager.makeCandle).to.equal("function");
+  });
+
+  it("should return a candle data object when calling makeCandle", () => {
+    expect(dataManager.makeCandle(tradeInput)).to.eql({
+      volume: 892.3299999999999,
+      high: 1.05,
+      low: 1,
+      open: 1.0058,
+      close: 1.0496,
+      tradeId: 12
+    });
+  });
+
+  it("should have a makeChunkComparator function", () => {
+    expect(typeof dataManager.makeChunkComparator).to.equal("function");
+  });
+
+  it("should return a comparator function when calling makeChunkComparator", () => {
+    expect(typeof dataManager.makeChunkComparator("time")).to.equal("function");
+    expect(typeof dataManager.makeChunkComparator("volume")).to.equal(
+      "function"
+    );
+    expect(typeof dataManager.makeChunkComparator("currency")).to.equal(
+      "function"
+    );
+  });
+
+  it("should have a processCandles function", () => {
+    expect(typeof dataManager.processCandles).to.equal("function");
+  });
+
+  it("should process and save candles when calling processCandles", () => {
+    const dbConnStub = sinon.stub(dataManager, "getDb").returns({
+      serialize: () => {
+        return;
+      },
+      run: () => {
+        return;
+      }
+    });
   });
 });
