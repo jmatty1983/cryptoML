@@ -115,6 +115,19 @@ const DataManager = {
   },
 
   /**
+   * Returns an object with keys min and max for the minimum and maximum values of an array
+   *
+   * @param {Array} array - array of numbers
+   * @returns {Object {min, max}}
+   */
+  getNormalisedPoints: function(array) {
+    return {
+      min: Math.min(...array),
+      max: Math.max(...array)
+    };
+  },
+
+  /**
    * Loads candles from the data base
    * @param {string} table - Table name
    * @param {integer=0} from - tradeId to start from - ignored for now
@@ -273,6 +286,19 @@ const DataManager = {
 
       return chunks;
     };
+  },
+
+  /**
+   * Returns an array of normalised data between 0 and 1
+   *
+   * @param {Array} array - array of numbers
+   * @param {Object {min, max}} - an object with a min and max number to normalise data with
+   * @returns {Array}
+   */
+  normaliseArray: function(array, normPoints) {
+    const { min, max } = normPoints;
+
+    return array.map(n => (n - min) / (max - min));
   },
 
   /**

@@ -573,4 +573,59 @@ describe("Data Manager Module", () => {
   it("should have a getDb function", () => {
     expect(typeof dataManager.getDb).to.equal("function");
   });
+
+  it("should have a getNormalisedPoints function", () => {
+    expect(typeof dataManager.getNormalisedPoints).to.equal("function");
+  });
+
+  it("should return the min and max values for an array when calling getNormalisedPoints", () => {
+    const input = [7, 78, 1289, 387, 2198, 2, 29];
+
+    expect(dataManager.getNormalisedPoints(input)).to.eql({
+      min: 2,
+      max: 2198
+    });
+  });
+
+  it("should have a normaliseArray function", () => {
+    expect(typeof dataManager.normaliseArray).to.equal("function");
+  });
+
+  it("should return an array of normalised data when calling normaliseArray", () => {
+    const input = [
+      59,
+      185,
+      96,
+      232,
+      123,
+      248,
+      74,
+      173,
+      106,
+      220,
+      244,
+      139,
+      60,
+      55,
+      99
+    ];
+
+    expect(dataManager.normaliseArray(input, { min: 55, max: 248 })).to.eql([
+      0.02072538860103627,
+      0.6735751295336787,
+      0.21243523316062177,
+      0.917098445595855,
+      0.35233160621761656,
+      1,
+      0.09844559585492228,
+      0.6113989637305699,
+      0.26424870466321243,
+      0.8549222797927462,
+      0.9792746113989638,
+      0.43523316062176165,
+      0.025906735751295335,
+      0,
+      0.22797927461139897
+    ]);
+  });
 });
