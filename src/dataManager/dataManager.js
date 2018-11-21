@@ -89,8 +89,7 @@ const DataManager = {
    * Returns a live sqlite connection
    * @returns {sqlite3 connection instance}
    */
-  /* istanbul ignore next */
-  getDb: function() {
+  getDb: /* istanbul ignore next */ function() {
     const dbConn = new db.Database(
       `${this.dataDir}${this.dbFile}${this.dbExt}`
     );
@@ -286,67 +285,59 @@ const DataManager = {
    * }]
    */
   processCandles: async function(table, types) {
-    try {
-      let rowLen;
-      const dbConn = this.getDb();
-      dbConn.serialize(() => {
-        for (let i = 0; i < types.length; i++) {
-          const type = types[i].type;
-          const len = types[i].length;
-          dbConn.run(`DROP TABLE IF EXISTS [${table}_${type}_${len}]`);
-        }
-      });
+    let rowLen;
+    const dbConn = this.getDb();
+    dbConn.serialize(() => {
+      for (let i = 0; i < types.length; i++) {
+        const type = types[i].type;
+        const len = types[i].length;
+        dbConn.run(`DROP TABLE IF EXISTS [${table}_${type}_${len}]`);
+      }
+    });
 
-      await new Promise(resolve => dbConn.close(resolve));
-      let remainders = {};
-      let offset = 0;
-      do {
-        rowLen = new Promise(resolve => {
-          const dbConn = this.getDb();
-          dbConn.all(
-            `SELECT * FROM [${table}] ORDER BY tradeId ASC LIMIT ${limit} OFFSET ${offset}`,
-            [],
-            async (err, rows) => {
-              const candles = types.map(({ type, length }) => {
-                if (err) {
-                  throw err;
-                }
+    await new Promise(resolve => dbConn.close(resolve));
+    let remainders = {};
+    let offset = 0;
+    do {
+      rowLen = new Promise(resolve => {
+        const dbConn = this.getDb();
+        dbConn.all(
+          `SELECT * FROM [${table}] ORDER BY tradeId ASC LIMIT ${limit} OFFSET ${offset}`,
+          [],
+          async (err, rows) => {
+            const candles = types.map(({ type, length }) => {
+              return new Promise(async resolve => {
+                const extra = remainders[`${table}_${type}_${length}`]
+                  ? remainders[`${table}_${type}_${length}`]
+                  : [];
 
-                return new Promise(async resolve => {
-                  const extra = remainders[`${table}_${type}_${length}`]
-                    ? remainders[`${table}_${type}_${length}`]
-                    : [];
-
-                  const built = await this.buildCandles({
-                    type,
-                    length,
-                    rows: [...extra, ...rows]
-                  });
-                  resolve({ type, length, built });
+                const built = await this.buildCandles({
+                  type,
+                  length,
+                  rows: [...extra, ...rows]
                 });
+                resolve({ type, length, built });
               });
-              dbConn.close();
+            });
+            dbConn.close();
 
-              const allCandles = await Promise.all(candles);
-              //this makes me so unhappy
-              remainders = {};
-              for (let i = 0; i < allCandles.length; i++) {
-                const { type, length, built } = allCandles[i];
-                await this.storeCandles(
-                  `${table}_${type}_${length}`,
-                  built.candles
-                );
-                remainders[`${table}_${type}_${length}`] = built.remainder;
-              }
-              offset += limit;
-              resolve(rows.length);
+            const allCandles = await Promise.all(candles);
+            //this makes me so unhappy
+            remainders = {};
+            for (let i = 0; i < allCandles.length; i++) {
+              const { type, length, built } = allCandles[i];
+              await this.storeCandles(
+                `${table}_${type}_${length}`,
+                built.candles
+              );
+              remainders[`${table}_${type}_${length}`] = built.remainder;
             }
-          );
-        });
-      } while ((await rowLen) === limit);
-    } catch (e) {
-      Logger.error(e.message);
-    }
+            offset += limit;
+            resolve(rows.length);
+          }
+        );
+      });
+    } while ((await rowLen) === limit);
   },
 
   /**
@@ -355,7 +346,7 @@ const DataManager = {
    * @param {array{}} candles - array of candle objects
    */
   storeCandles: async function(table, candles) {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       try {
         if (!this.dbFile) {
           throw "Database file unspecified";
@@ -381,6 +372,7 @@ const DataManager = {
         Logger.debug(`${candles.length} added to ${table}`);
       } catch (e) {
         Logger.error(e.message);
+        reject(e);
       }
     });
   },
@@ -390,8 +382,8 @@ const DataManager = {
    * @param {array} batch - batch of trades
    */
   storeTrades: async function(batch) {
-    try {
-      return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
+      try {
         if (!this.dbFile) {
           throw "Database file unspecified";
         }
@@ -427,10 +419,11 @@ const DataManager = {
 
         dbConn.close(resolve);
         Logger.debug(`${batch.length} rows inserted into table`);
-      });
-    } catch (e) {
-      Logger.error(e.message);
-    }
+      } catch (e) {
+        Logger.error(e.message);
+        reject(e);
+      }
+    });
   }
 };
 

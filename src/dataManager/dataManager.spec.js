@@ -292,14 +292,285 @@ describe("Data Manager Module", () => {
     expect(typeof dataManager.processCandles).to.equal("function");
   });
 
-  it("should process and save candles when calling processCandles", () => {
+  it("should process and save candles when calling processCandles", done => {
+    let serialCalls = 0;
+    let runCalls = 0;
+    let allCalls = 0;
+    let allCalled = false;
+
     const dbConnStub = sinon.stub(dataManager, "getDb").returns({
-      serialize: () => {
-        return;
+      serialize: fn => {
+        serialCalls++;
+        fn();
       },
-      run: () => {
-        return;
+      run: () => runCalls++,
+      close: fn => {
+        if (fn) {
+          fn();
+        }
+      },
+      all: (sql, args, fn) => {
+        allCalls++;
+        if (!allCalled) {
+          allCalled = true;
+          fn(null, new Array(100000));
+        } else {
+          fn(null, []);
+        }
       }
     });
+
+    let buildCalls = 0;
+    const buildCandlesStub = sinon
+      .stub(dataManager, "buildCandles")
+      .callsFake(() => {
+        buildCalls++;
+        return Promise.resolve({
+          built: ["foo"],
+          remainder: buildCalls % 2 ? null : ["bar"]
+        });
+      });
+
+    const storeCandlesStub = sinon
+      .stub(dataManager, "storeCandles")
+      .returns(Promise.resolve());
+
+    const types = [
+      {
+        type: "tick",
+        length: 3
+      },
+      {
+        type: "tick",
+        length: 5
+      },
+      {
+        type: "tick",
+        length: 10
+      }
+    ];
+
+    dataManager
+      .processCandles("foo", types)
+      .then(resp => {
+        expect(serialCalls).to.equal(1);
+        expect(runCalls).to.equal(3);
+        expect(allCalls).to.equal(2);
+        expect(buildCandlesStub).to.have.been.called;
+        expect(storeCandlesStub).to.have.been.called;
+        dbConnStub.restore();
+        buildCandlesStub();
+        storeCandlesStub();
+        done();
+      })
+      .catch(err => {
+        expect(err).to.be.undefined;
+        done();
+      });
+  });
+
+  it("should have a storeCandles function", () => {
+    expect(typeof dataManager.storeCandles).to.equal("function");
+  });
+
+  it("should store candle data in the db when calling storeCandles", done => {
+    let dbRunCalls = 0;
+    let serialCalls = 0;
+    let closeCalls = 0;
+    let prepareCalls = 0;
+    let prepRunCalls = 0;
+    let finalizeCalls = 0;
+
+    let candles = [
+      {
+        open: "foo",
+        close: "foo",
+        high: "foo",
+        low: "foo",
+        volume: "foo",
+        tradeId: "foo"
+      },
+      {
+        open: "bar",
+        close: "bar",
+        high: "bar",
+        low: "bar",
+        volume: "bar",
+        tradeId: "bar"
+      }
+    ];
+
+    const dbConnStub = sinon.stub(dataManager, "getDb").returns({
+      serialize: fn => {
+        serialCalls++;
+        fn();
+      },
+      run: () => {
+        dbRunCalls++;
+        return;
+      },
+      close: fn => {
+        closeCalls++;
+        fn();
+      },
+      prepare: () => {
+        prepareCalls++;
+        return {
+          run: () => {
+            prepRunCalls++;
+            return;
+          },
+          finalize: () => {
+            finalizeCalls++;
+            return;
+          }
+        };
+      }
+    });
+
+    dataManager
+      .storeCandles("baz", candles)
+      .then(() => {
+        expect(serialCalls).to.equal(1);
+        expect(dbRunCalls).to.equal(3);
+        expect(closeCalls).to.equal(1);
+        expect(prepareCalls).to.equal(1);
+        expect(prepRunCalls).to.equal(2);
+        expect(finalizeCalls).to.equal(1);
+        dbConnStub.restore();
+        done();
+      })
+      .catch(err => {
+        expect(err).to.be.undefined;
+        dbConnStub.restore();
+        done();
+      });
+  });
+
+  it("should throw an error if the dbFile is not set when calling storeCandles", done => {
+    delete dataManager.dbFile;
+
+    dataManager
+      .storeCandles("foo", "bar")
+      .then(res => {
+        expect(res).to.be.undefined;
+        done();
+      })
+      .catch(err => {
+        expect(err).not.to.be.undefined;
+        done();
+      });
+  });
+
+  it("should have a storeTrades function", () => {
+    expect(typeof dataManager.storeTrades).to.equal("function");
+  });
+
+  it("should store trades when calling storeTrades", done => {
+    let dbRunCalls = 0;
+    let serialCalls = 0;
+    let closeCalls = 0;
+    let prepareCalls = 0;
+    let prepRunCalls = 0;
+    let finalizeCalls = 0;
+
+    let trades = [
+      {
+        symbol: "foo",
+        id: "foo",
+        timestamp: "foo",
+        info: {
+          p: "foo",
+          q: "foo"
+        }
+      },
+      {
+        symbol: "bar",
+        id: "bar",
+        timestamp: "bar",
+        info: {
+          p: "bar",
+          q: "bar"
+        }
+      }
+    ];
+
+    const dbConnStub = sinon.stub(dataManager, "getDb").returns({
+      serialize: fn => {
+        serialCalls++;
+        fn();
+      },
+      run: () => {
+        dbRunCalls++;
+        return;
+      },
+      close: fn => {
+        closeCalls++;
+        fn();
+      },
+      prepare: () => {
+        prepareCalls++;
+        return {
+          run: () => {
+            prepRunCalls++;
+            return;
+          },
+          finalize: () => {
+            finalizeCalls++;
+            return;
+          }
+        };
+      }
+    });
+
+    dataManager
+      .storeTrades(trades)
+      .then(() => {
+        expect(serialCalls).to.equal(1);
+        expect(dbRunCalls).to.equal(4);
+        expect(closeCalls).to.equal(1);
+        expect(prepareCalls).to.equal(1);
+        expect(prepRunCalls).to.equal(2);
+        expect(finalizeCalls).to.equal(1);
+        dbConnStub.restore();
+        done();
+      })
+      .catch(err => {
+        expect(err).to.be.undefined;
+        dbConnStub.restore();
+        done();
+      });
+  });
+
+  it("should throw an error if the dbFile is not set when calling storeTrades", done => {
+    delete dataManager.dbFile;
+
+    dataManager
+      .storeTrades("foo")
+      .then(res => {
+        expect(res).to.be.undefined;
+        done();
+      })
+      .catch(err => {
+        expect(err).not.to.be.undefined;
+        done();
+      });
+  });
+
+  it("should throw an error if calling storeTrades without trade data", done => {
+    dataManager
+      .storeTrades(true)
+      .then(res => {
+        expect(res).to.be.undefined;
+        done();
+      })
+      .catch(err => {
+        expect(err).not.to.be.undefined;
+        done();
+      });
+  });
+
+  it("should have a getDb function", () => {
+    expect(typeof dataManager.getDb).to.equal("function");
   });
 });
