@@ -161,7 +161,7 @@ const DataManager = {
     const candles = await this.loadCandles(
       `[${pair.toUpperCase()}_${type.toLowerCase()}_${length.toLowerCase()}]`
     );
-    const candleArrays = [
+    let candleArrays = [
       ArrayUtils.getProp("open", candles),
       ArrayUtils.getProp("close", candles),
       ArrayUtils.getProp("high", candles),
@@ -173,6 +173,11 @@ const DataManager = {
       candleArrays.push(
         Indicators[indicator.name](...indicator.params, candleArrays)
       )
+    );
+
+    const minLength = Math.min(...candleArrays.map(array => array.length));
+    candleArrays = candleArrays.map(array =>
+      array.slice(array.length - minLength, array.length)
     );
     return candleArrays;
   },
