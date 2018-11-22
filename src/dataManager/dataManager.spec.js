@@ -87,23 +87,18 @@ describe("Data Manager Module", () => {
     );
   });
 
-  it("should throw when calling buildCandles with time and an invalid time duration", done => {
+  it("should throw when calling buildCandles with time and an invalid time duration", async () => {
     const buildCandlesInput = {
       type: "time",
       length: "foo",
       rows: tradeInput
     };
 
-    dataManager
-      .buildCandles(buildCandlesInput)
-      .then(data => {
-        expect(data).to.be.undefined;
-        done();
-      })
-      .catch(err => {
-        expect(err).not.to.be.undefined;
-        done();
-      });
+    try {
+      await dataManager.buildCandles(buildCandlesInput);
+    } catch (e) {
+      expect(e).not.to.be.undefined;
+    }
   });
 
   it("should build volume candles appropriately when calling buildCandles with trade data", async () => {
@@ -130,23 +125,17 @@ describe("Data Manager Module", () => {
     );
   });
 
-  it("should throw an error if trying to build candles with an invalid type", done => {
+  it("should throw an error if trying to build candles with an invalid type", async () => {
     const buildCandlesInput = {
       type: "foo",
       length: "10",
       rows: tradeInput
     };
-
-    dataManager
-      .buildCandles(buildCandlesInput)
-      .then(data => {
-        expect(data).to.be.undefined;
-        done();
-      })
-      .catch(err => {
-        expect(err).not.to.be.undefined;
-        done();
-      });
+    try {
+      await dataManager.buildCandles(buildCandlesInput);
+    } catch (e) {
+      expect(e).not.to.be.undefined;
+    }
   });
 
   it("should have a convertLengthToTime function", () => {
@@ -214,25 +203,19 @@ describe("Data Manager Module", () => {
     dbConnStub.restore();
   });
 
-  it("should throw an error if sql returns an error when calling loadCandles", done => {
+  it("should throw an error if sql returns an error when calling loadCandles", async () => {
     const dbConnStub = sinon.stub(dataManager, "getDb").returns({
       all: (str, args, fn) => {
         fn(true, null);
       }
     });
 
-    dataManager
-      .loadCandles("bar")
-      .then(data => {
-        expect(data).to.be.null;
-        dbConnStub.restore();
-        done();
-      })
-      .catch(err => {
-        expect(err).not.to.be.null;
-        dbConnStub.restore();
-        done();
-      });
+    try {
+      await dataManager.loadCandles("bar");
+    } catch (e) {
+      expect(e).not.to.be.null;
+      dbConnStub.restore();
+    }
   });
 
   it("should have a loadData function", () => {
@@ -292,7 +275,7 @@ describe("Data Manager Module", () => {
     expect(typeof dataManager.processCandles).to.equal("function");
   });
 
-  it("should process and save candles when calling processCandles", done => {
+  it("should process and save candles when calling processCandles", async () => {
     let serialCalls = 0;
     let runCalls = 0;
     let allCalls = 0;
@@ -350,30 +333,22 @@ describe("Data Manager Module", () => {
       }
     ];
 
-    dataManager
-      .processCandles("foo", types)
-      .then(resp => {
-        expect(serialCalls).to.equal(1);
-        expect(runCalls).to.equal(3);
-        expect(allCalls).to.equal(2);
-        expect(buildCandlesStub).to.have.been.called;
-        expect(storeCandlesStub).to.have.been.called;
-        dbConnStub.restore();
-        buildCandlesStub();
-        storeCandlesStub();
-        done();
-      })
-      .catch(err => {
-        expect(err).to.be.undefined;
-        done();
-      });
+    await dataManager.processCandles("foo", types);
+    expect(serialCalls).to.equal(1);
+    expect(runCalls).to.equal(3);
+    expect(allCalls).to.equal(2);
+    expect(buildCandlesStub).to.have.been.called;
+    expect(storeCandlesStub).to.have.been.called;
+    dbConnStub.restore();
+    buildCandlesStub();
+    storeCandlesStub();
   });
 
   it("should have a storeCandles function", () => {
     expect(typeof dataManager.storeCandles).to.equal("function");
   });
 
-  it("should store candle data in the db when calling storeCandles", done => {
+  it("should store candle data in the db when calling storeCandles", async () => {
     let dbRunCalls = 0;
     let serialCalls = 0;
     let closeCalls = 0;
@@ -428,45 +403,35 @@ describe("Data Manager Module", () => {
       }
     });
 
-    dataManager
-      .storeCandles("baz", candles)
-      .then(() => {
-        expect(serialCalls).to.equal(1);
-        expect(dbRunCalls).to.equal(3);
-        expect(closeCalls).to.equal(1);
-        expect(prepareCalls).to.equal(1);
-        expect(prepRunCalls).to.equal(2);
-        expect(finalizeCalls).to.equal(1);
-        dbConnStub.restore();
-        done();
-      })
-      .catch(err => {
-        expect(err).to.be.undefined;
-        dbConnStub.restore();
-        done();
-      });
+    try {
+      await dataManager.storeCandles("baz", candles);
+      expect(serialCalls).to.equal(1);
+      expect(dbRunCalls).to.equal(3);
+      expect(closeCalls).to.equal(1);
+      expect(prepareCalls).to.equal(1);
+      expect(prepRunCalls).to.equal(2);
+      expect(finalizeCalls).to.equal(1);
+      dbConnStub.restore();
+    } catch (e) {
+      console.log(e);
+    }
   });
 
-  it("should throw an error if the dbFile is not set when calling storeCandles", done => {
+  it("should throw an error if the dbFile is not set when calling storeCandles", async () => {
     delete dataManager.dbFile;
 
-    dataManager
-      .storeCandles("foo", "bar")
-      .then(res => {
-        expect(res).to.be.undefined;
-        done();
-      })
-      .catch(err => {
-        expect(err).not.to.be.undefined;
-        done();
-      });
+    try {
+      await dataManager.storeCandles("foo", "bar");
+    } catch (e) {
+      expect(e).not.to.be.undefined;
+    }
   });
 
   it("should have a storeTrades function", () => {
     expect(typeof dataManager.storeTrades).to.equal("function");
   });
 
-  it("should store trades when calling storeTrades", done => {
+  it("should store trades when calling storeTrades", async () => {
     let dbRunCalls = 0;
     let serialCalls = 0;
     let closeCalls = 0;
@@ -523,51 +488,36 @@ describe("Data Manager Module", () => {
       }
     });
 
-    dataManager
-      .storeTrades(trades)
-      .then(() => {
-        expect(serialCalls).to.equal(1);
-        expect(dbRunCalls).to.equal(4);
-        expect(closeCalls).to.equal(1);
-        expect(prepareCalls).to.equal(1);
-        expect(prepRunCalls).to.equal(2);
-        expect(finalizeCalls).to.equal(1);
-        dbConnStub.restore();
-        done();
-      })
-      .catch(err => {
-        expect(err).to.be.undefined;
-        dbConnStub.restore();
-        done();
-      });
+    await dataManager.storeTrades(trades);
+    expect(serialCalls).to.equal(1);
+    expect(dbRunCalls).to.equal(4);
+    expect(closeCalls).to.equal(1);
+    expect(prepareCalls).to.equal(1);
+    expect(prepRunCalls).to.equal(2);
+    expect(finalizeCalls).to.equal(1);
+    dbConnStub.restore();
   });
 
-  it("should throw an error if the dbFile is not set when calling storeTrades", done => {
+  it("should throw an error if the dbFile is not set when calling storeTrades", async () => {
     delete dataManager.dbFile;
 
-    dataManager
-      .storeTrades("foo")
-      .then(res => {
-        expect(res).to.be.undefined;
-        done();
-      })
-      .catch(err => {
-        expect(err).not.to.be.undefined;
-        done();
-      });
+    try {
+      await dataManager.storeTrades("foo");
+    } catch (e) {
+      expect(e).not.to.be.undefined;
+    }
   });
 
-  it("should throw an error if calling storeTrades without trade data", done => {
-    dataManager
-      .storeTrades(true)
-      .then(res => {
-        expect(res).to.be.undefined;
-        done();
-      })
-      .catch(err => {
-        expect(err).not.to.be.undefined;
-        done();
-      });
+  it("should throw an error if calling storeTrades without trade data", async () => {
+    const spy = sinon.spy(dataManager, "storeTrades");
+
+    try {
+      const res = await dataManager.storeTrades(true);
+      expect(res).to.be.undefined;
+    } catch (e) {
+      expect(e).not.to.be.undefined;
+    }
+    expect(spy).to.have.thrown;
   });
 
   it("should have a getDb function", () => {

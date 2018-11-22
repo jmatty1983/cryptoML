@@ -295,9 +295,7 @@ const DataManager = {
    * @param {Object {min, max}} - an object with a min and max number to normalise data with
    * @returns {Array}
    */
-  normaliseArray: function(array, normPoints) {
-    const { min, max } = normPoints;
-
+  normaliseArray: function(array, { min, max }) {
     return array.map(n => (n - min) / (max - min));
   },
 

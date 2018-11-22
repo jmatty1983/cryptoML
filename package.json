@@ -22,7 +22,7 @@
     "exclude": "**/*.spec.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Jason Matthews <jmatty1983@gmail.com>",
   "license": "ISC",
   "dependencies": {
     "@tensorflow/tfjs-node-gpu": "^0.1.20",
