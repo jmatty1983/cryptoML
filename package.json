@@ -34,6 +34,7 @@
     "lint-staged": "^8.0.4",
     "lodash": "^4.17.11",
     "mocha": "^5.2.0",
+    "neataptic": "^1.4.7",
     "nyc": "^13.1.0",
     "prettier": "^1.14.3",
     "sinon": "^7.1.1",

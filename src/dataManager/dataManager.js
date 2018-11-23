@@ -64,6 +64,27 @@ const DataManager = {
   },
 
   /**
+   * Checks if a table exists already for the pair and candle type
+   *
+   * @param {string} pair - Pair to check if data exists for
+   * @param {string} type - Tick|Time|Volume|Currency
+   * @param {string} length - Length of candle to check for
+   * @returns {boolean}
+   */
+  checkDataExists: function(pair, type, length) {
+    const dbConn = this.getDb();
+    return new Promise(resolve => {
+      dbConn.each(
+        `SELECT count(*) AS num FROM sqlite_master WHERE type = 'table' AND name = '${pair}_${type}_${length}'`,
+        (err, row) => {
+          resolve(!!row.num);
+          dbConn.close();
+        }
+      );
+    });
+  },
+
+  /**
    * Converts a length string like 5s, 5m, 5h, 5d to milliseconds
    * @param {string} length
    * @returns {integer}
@@ -137,13 +158,17 @@ const DataManager = {
     const dbConn = this.getDb();
 
     return new Promise(resolve => {
-      dbConn.all(`SELECT * FROM ${table} ORDER BY tradeId`, [], (err, rows) => {
-        if (err) {
-          throw err;
+      dbConn.all(
+        `SELECT * FROM ${table} WHERE id > ${from} ORDER BY tradeId`,
+        [],
+        (err, rows) => {
+          if (err) {
+            throw err;
+          }
+          dbConn.close();
+          resolve(rows);
         }
-        dbConn.close();
-        resolve(rows);
-      });
+      );
     });
   },
 
@@ -175,6 +200,9 @@ const DataManager = {
       )
     );
 
+    //When using different indicators it can take a few candles until they're able to output values.
+    //So we cut off the front of everything longer than the shortest array so the values will all line
+    //up with the appropriate candles.
     const minLength = Math.min(...candleArrays.map(array => array.length));
     candleArrays = candleArrays.map(array =>
       array.slice(array.length - minLength, array.length)

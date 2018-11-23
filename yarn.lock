@@ -2021,6 +2021,10 @@ nanomatch@^1.2.9:
     snapdragon "^0.8.1"
     to-regex "^3.0.1"
 
+neataptic@^1.4.7:
+  version "1.4.7"
+  resolved "https://registry.yarnpkg.com/neataptic/-/neataptic-1.4.7.tgz#88cc00df1915572fe1af61652e3b1f87a7f50e74"
+
 needle@^2.2.1:
   version "2.2.4"
   resolved "https://registry.yarnpkg.com/needle/-/needle-2.2.4.tgz#51931bff82533b1928b7d1d69e01f1b00ffd2a4e"

@@ -578,4 +578,24 @@ describe("Data Manager Module", () => {
       0.22797927461139897
     ]);
   });
+
+  it("should have a checkDataExists function", () => {
+    expect(typeof dataManager.checkDataExists).to.equal("function");
+  });
+
+  it("should return true or false when calling checkDataExists", async () => {
+    const dbConnStub = sinon.stub(dataManager, "getDb").returns({
+      close: () => {
+        return;
+      },
+      each: (str, fn) => {
+        fn(null, {
+          num: 1
+        });
+      }
+    });
+
+    const resp = dataManager.checkDataExists("foo");
+    expect(resp).not.to.be.undefined;
+  });
 });

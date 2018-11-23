@@ -2,9 +2,12 @@ require("dotenv-safe").config();
 const dataDir = process.env.DATA_DIR;
 const dbExt = process.env.DB_EXT;
 
+const readline = require("readline");
+
 const ExchangeImport = require("./exchangeImporter/exchangeImporter");
 const DataManager = require("./dataManager/dataManager");
 const Logger = require("./logger/logger");
+const Neat = require("./neat/neat");
 
 const args = process.argv.slice(2);
 const actions = ["import", "process", "ga"];
@@ -46,13 +49,7 @@ switch (fn) {
         throw "No lengths provided";
       }
 
-      const dataManager = Object.create(DataManager);
-      dataManager.init(exchange, dataDir, dbExt);
-
-      const types = args[3]
-        .split(",")
-        .map(length => ({ type: args[2], length }));
-      dataManager.processCandles(args[1], types);
+      processCandles(args[1], args[2], args[3]);
     } catch (e) {
       Logger.error(e.message);
     }
@@ -72,22 +69,50 @@ switch (fn) {
         throw "No length specified";
       }
 
-      const dataManager = Object.create(DataManager);
-      dataManager.init(exchange, dataDir, dbExt);
-      const indicators = [
-        {
-          name: "sma",
-          params: [2]
-        }
-      ];
-
-      dataManager
-        .loadData(args[1], args[2], args[3], indicators)
-        .then(console.log);
+      const neat = Object.create(Neat);
+      neat
+        .init({
+          pair: args[1],
+          type: args[2],
+          length: args[3],
+          exchange,
+          dataDir,
+          dbExt
+        })
+        .then(() => {
+          if (!neat.data.length) {
+            const prompt = readline.createInterface({
+              input: process.stdin,
+              output: process.stdout
+            });
+            prompt.question(
+              `There is no data for ${args[1]} ${args[2]} ${
+                args[3]
+              } would you like it processed now? (y/n)`,
+              async answer => {
+                if (answer.toLowerCase() === "y") {
+                  await processCandles(args[1], args[2], args[3]);
+                  prompt.close();
+                } else {
+                  Logger.info("Data must be processed before running GA");
+                  process.exit();
+                }
+              }
+            );
+          }
+        });
       break;
     } catch (e) {
       Logger.error(e.message);
     }
   default:
     Logger.error(`Invalid action ${fn}. Valid options are: ${actions}`);
+}
+
+async function processCandles(pair, type, length) {
+  const dataManager = Object.create(DataManager);
+  dataManager.init(exchange, dataDir, dbExt);
+
+  const types = length.split(",").map(length => ({ type: type, length }));
+  await dataManager.processCandles(pair, types);
 }
