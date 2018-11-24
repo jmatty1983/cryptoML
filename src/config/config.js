@@ -1,7 +1,9 @@
-//This module will be for creating random sets of indicators at some point.
-//There can be so many layers of tuning for this kind of thing.
+exports.sysConfig = {
+  populationSize: 100,
+  mutationRate: 0.5
+};
 
-module.exports = [
+exports.indicatorConfig = [
   {
     name: "sma",
     params: [9]

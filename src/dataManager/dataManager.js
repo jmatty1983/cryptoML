@@ -129,7 +129,11 @@ const DataManager = {
       dbConn.each(
         `SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`,
         [],
-        (err, row) => resolve(row && row.lastId ? row.lastId : 0)
+        (err, row) => {
+          const ret = row && row.lastId ? row.lastId : 0;
+          Logger.debug(`trade data detected. Resuming from trade id${ret}`);
+          resolve(ret);
+        }
       );
       dbConn.close();
     });

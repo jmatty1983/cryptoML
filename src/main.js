@@ -4,6 +4,7 @@ const dbExt = process.env.DB_EXT;
 
 const readline = require("readline");
 
+const { sysConfig, indicatorConfig } = require("./config/config");
 const ExchangeImport = require("./exchangeImporter/exchangeImporter");
 const DataManager = require("./dataManager/dataManager");
 const Logger = require("./logger/logger");
@@ -75,6 +76,8 @@ switch (fn) {
           pair: args[1],
           type: args[2],
           length: args[3],
+          config: sysConfig,
+          indicatorConfig,
           exchange,
           dataDir,
           dbExt
@@ -92,13 +95,15 @@ switch (fn) {
               async answer => {
                 if (answer.toLowerCase() === "y") {
                   await processCandles(args[1], args[2], args[3]);
-                  prompt.close();
+                  Logger.info("Data processed. You can run GA again.");
                 } else {
                   Logger.info("Data must be processed before running GA");
-                  process.exit();
                 }
+                process.exit();
               }
             );
+          } else {
+            neat.start();
           }
         });
       break;
