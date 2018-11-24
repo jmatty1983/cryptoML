@@ -1,6 +1,7 @@
 const { Neat, methods, architect, Network } = require("neataptic");
 const DataManager = require("../dataManager/dataManager");
 const Logger = require("../logger/logger");
+const TradeManager = require("../tradeManager/tradeManager");
 
 const NeatTrainer = {
   init: async function({
@@ -33,7 +34,11 @@ const NeatTrainer = {
   },
 
   train: function() {
-    this.neat.population.forEach(genome => {});
+    this.neat.population.forEach(genome => {
+      const trader = Object.create(TradeManager);
+      trader.init(genome, this.data, this.trainData);
+      trader.runTrades();
+    });
   },
 
   start: function() {
