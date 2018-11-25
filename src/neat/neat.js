@@ -1,4 +1,6 @@
 const { Neat, methods, architect, Network } = require("neataptic");
+
+const { tradeConfig } = require("../config/config");
 const DataManager = require("../dataManager/dataManager");
 const Logger = require("../logger/logger");
 const TradeManager = require("../tradeManager/tradeManager");
@@ -11,12 +13,12 @@ const NeatTrainer = {
     length,
     dataDir,
     dbExt,
-    config,
+    networkConfig,
     indicatorConfig
   }) {
     this.dataManager = Object.create(DataManager);
     this.dataManager.init(exchange, dataDir, dbExt);
-    this.config = config;
+    this.networkConfig = networkConfig;
     this.indicatorConfig = indicatorConfig;
     this.archive = [];
     this.data = (await this.dataManager.checkDataExists(pair, type, length))
@@ -26,9 +28,13 @@ const NeatTrainer = {
     if (this.data.length) {
       this.neat = new Neat(this.data.length, 1, null, {
         mutation: methods.mutation.ALL,
-        popsize: this.config.populationSize,
-        mutationRate: this.config.mutationRate,
-        network: new architect.Random(this.data.length, 1, 1)
+        popsize: this.networkConfig.populationSize,
+        mutationRate: this.networkConfig.mutationRate,
+        network: new architect.Random(
+          this.data.length,
+          1,
+          this.networkConfig.outputSize
+        )
       });
     }
   },
@@ -36,7 +42,7 @@ const NeatTrainer = {
   train: function() {
     this.neat.population.forEach(genome => {
       const trader = Object.create(TradeManager);
-      trader.init(genome, this.data, this.trainData);
+      trader.init(genome, this.data, this.trainData, tradeConfig);
       trader.runTrades();
     });
   },
