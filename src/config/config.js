@@ -3,6 +3,8 @@
 exports.networkConfig = {
   populationSize: 100,
   mutationRate: 0.5,
+  fitBreedAmt: 0.1,
+  rndBreedAmt: 0.1,
   //1 - Buy Sell Only
   //2 - Buy Sell Position Size
   outputSize: 2,

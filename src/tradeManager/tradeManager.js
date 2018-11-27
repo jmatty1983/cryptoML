@@ -53,20 +53,22 @@ const TradeManager = {
         if (this.position.type === "none") {
           this.position.startCurrency = this.currency;
         }
-
-        const cost = changeAmt * this.position.startCurrency;
+        const change = changeAmt * this.position.startCurrency;
+        const cost = change < this.currency ? change : this.currency;
         this.currency -= cost;
 
         if (changeAmt > 0) {
           this.asset += (cost * (1 - (this.fees + this.slippage))) / candle[1];
           this.buys++;
           if (this.currency < 0) {
+            //this should not be possible
             throw "Currency dropped below 0.";
           }
         } else {
           this.asset += (cost * (1 + (this.fees + this.slippage))) / candle[1];
           this.sells++;
           if (this.asset < 0) {
+            //this should also not be possible
             throw "Asset dropped below 0.";
           }
         }
@@ -78,10 +80,10 @@ const TradeManager = {
     }
   },
 
-  doShort: function(positionSize, candle) {
-    if (this.allowShorts) {
-    }
-  },
+  // doShort: function(positionSize, candle) {
+  //   if (this.allowShorts) {
+  //   }
+  // },
 
   handleCandle: function(candle, [signal, positionSize]) {
     positionSize = positionSize === undefined ? 1 : positionSize;
@@ -89,7 +91,7 @@ const TradeManager = {
     if (signal > this.longThresh) {
       this.doLong(positionSize, candle);
     } else if (signal < this.shortThresh) {
-      this.doShort(positionSize, candle);
+      //this.doShort(positionSize, candle);
     } else {
       //do something? Exit all positions maybe?
     }
@@ -112,6 +114,15 @@ const TradeManager = {
 
       this.handleCandle(candle, output);
     });
+
+    return {
+      currency: this.currency,
+      startCurrency: this.startCurrency,
+      asset: this.asset,
+      value: this.currency + this.asset * this.data[this.data.length - 1][1],
+      buys: this.buys,
+      sells: this.sells
+    };
   }
 };
 

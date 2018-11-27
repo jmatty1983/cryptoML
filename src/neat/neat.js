@@ -21,6 +21,7 @@ const NeatTrainer = {
     this.networkConfig = networkConfig;
     this.indicatorConfig = indicatorConfig;
     this.archive = [];
+    this.generations = 0;
     this.data = (await this.dataManager.checkDataExists(pair, type, length))
       ? await this.dataManager.loadData(pair, type, length, indicatorConfig)
       : [];
@@ -39,11 +40,32 @@ const NeatTrainer = {
     }
   },
 
+  breed: function() {
+    this.neat.sort();
+    Logger.debug(
+      this.neat.population[0].score +
+        " " +
+        this.neat.population[0].stats.buys +
+        " " +
+        this.neat.population[0].stats.sells
+    );
+    this.neat.population = new Array(this.neat.popsize)
+      .fill(null)
+      .map(() => this.neat.getOffspring());
+
+    this.neat.mutate();
+  },
+
+  getFitness: function({ currency, startCurrency }) {
+    return (currency / startCurrency) * 100;
+  },
+
   train: function() {
     this.neat.population.forEach(genome => {
       const trader = Object.create(TradeManager);
       trader.init(genome, this.data, this.trainData, traderConfig);
-      trader.runTrades();
+      genome.stats = trader.runTrades();
+      genome.score = this.getFitness(genome.stats);
     });
   },
 
@@ -63,6 +85,8 @@ const NeatTrainer = {
 
     while (true) {
       this.train();
+      this.breed();
+      this.generations++;
     }
   }
 };
