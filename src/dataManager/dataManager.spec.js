@@ -597,5 +597,6 @@ describe("Data Manager Module", () => {
 
     const resp = dataManager.checkDataExists("foo");
     expect(resp).not.to.be.undefined;
+    dbConnStub.restore();
   });
 });

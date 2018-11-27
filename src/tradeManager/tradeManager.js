@@ -1,52 +1,97 @@
+const Logger = require("../logger/logger");
+
 const TradeManager = {
   init: function(
     genome,
     data,
     networkInput,
-    { buyThresh, sellThresh, positionChangeThesh, fees, slippage, allowShorts }
+    {
+      longThresh,
+      shortThresh,
+      positionChangeThesh,
+      fees,
+      slippage,
+      allowShorts
+    }
   ) {
     this.genome = genome;
     this.data = data;
     this.networkInput = networkInput;
-    this.buyThresh = buyThresh;
-    this.sellThresh = sellThresh;
+    this.longThresh = longThresh;
+    this.shortThresh = shortThresh;
     this.positionChangeThesh = positionChangeThesh;
     this.fees = fees;
     this.slippage = slippage;
-    this.asset = 0;
-    this.currency = 1;
     this.allowShorts = allowShorts;
 
+    this.asset = 0;
+    this.startCurrency = 1;
+    this.currency = this.startCurrency;
+
+    this.buys = 0;
+    this.sells = 0;
+
+    //More notes for future me. It may be worth experimenting with inputting current position
+    //information for the model.
     this.position = {
-      type: "none"
+      type: "none",
+      size: 0,
+      startCurrency: 0
     };
   },
 
-  checkOrder: function(type, positionSize, candle) {
-    if (
-      this.position.type === "none" &&
-      positionSize > this.positionChangeThesh
-    ) {
-      if (type === "long") {
-        //enter a long position
-      } else if (type === "short" && this.allowShorts) {
-        //enter a short position
+  doLong: function(positionSize, candle) {
+    try {
+      if (
+        (this.position.type === "none" &&
+          positionSize > this.positionChangeThesh) ||
+        (this.position.type === "long" &&
+          Math.abs(positionSize - this.position.size) >
+            this.positionChangeThesh)
+      ) {
+        const changeAmt = positionSize - this.position.size;
+        if (this.position.type === "none") {
+          this.position.startCurrency = this.currency;
+        }
+
+        const cost = changeAmt * this.position.startCurrency;
+        this.currency -= cost;
+
+        if (changeAmt > 0) {
+          this.asset += (cost * (1 - (this.fees + this.slippage))) / candle[1];
+          this.buys++;
+          if (this.currency < 0) {
+            throw "Currency dropped below 0.";
+          }
+        } else {
+          this.asset += (cost * (1 + (this.fees + this.slippage))) / candle[1];
+          this.sells++;
+          if (this.asset < 0) {
+            throw "Asset dropped below 0.";
+          }
+        }
+        this.position.size = positionSize;
       }
+    } catch (e) {
+      Logger.error(e);
+      process.exit();
     }
-    if (type !== this.position.type) {
-      //check for exiting a position condition
-    } else {
-      //check for changing position size
+  },
+
+  doShort: function(positionSize, candle) {
+    if (this.allowShorts) {
     }
   },
 
   handleCandle: function(candle, [signal, positionSize]) {
     positionSize = positionSize === undefined ? 1 : positionSize;
 
-    if (signal >= buyThresh) {
-      this.checkOrder("long", positionSize, candle);
-    } else if (signal <= sellThresh) {
-      this.checkOrder("short", positionSize, candle);
+    if (signal > this.longThresh) {
+      this.doLong(positionSize, candle);
+    } else if (signal < this.shortThresh) {
+      this.doShort(positionSize, candle);
+    } else {
+      //do something? Exit all positions maybe?
     }
   },
 

@@ -10,5 +10,5 @@ Copy the .env.example to .env
   - pair must be a valid exchange pair
 - `npm start process <pair> <type> <lengths>` ex: `npm start process BTC/USDT tick 10,50,100`
   - processes downloaded trades into different candle types
-  - type must be: `tick`|`time`|`volume`|`currency` (currently only tick works)
+  - type must be: `tick`|`time`|`volume`|`currency`
   - lengths are comma separated with no spaces
