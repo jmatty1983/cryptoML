@@ -25,7 +25,6 @@
   "author": "Jason Matthews <jmatty1983@gmail.com>",
   "license": "ISC",
   "dependencies": {
-    "@tensorflow/tfjs-node-gpu": "^0.1.20",
     "ccxt": "^1.17.458",
     "chai": "^4.2.0",
     "deep-freeze": "^0.0.1",
