@@ -6,7 +6,7 @@ const Logger = require("../logger/logger");
 const TradeManager = require("../tradeManager/tradeManager");
 
 const NeatTrainer = {
-  init: async function({
+  init: function({
     exchange,
     pair,
     type,
@@ -22,8 +22,8 @@ const NeatTrainer = {
     this.indicatorConfig = indicatorConfig;
     this.archive = [];
     this.generations = 0;
-    this.data = (await this.dataManager.checkDataExists(pair, type, length))
-      ? await this.dataManager.loadData(pair, type, length, indicatorConfig)
+    this.data = this.dataManager.checkDataExists(pair, type, length)
+      ? this.dataManager.loadData(pair, type, length, indicatorConfig)
       : [];
 
     if (this.data.length) {

@@ -1,5 +1,5 @@
 {
-  "name": "cryptoML",
+  "name": "crypto-ml",
   "version": "1.0.0",
   "description": "",
   "main": "main.js",
@@ -25,6 +25,7 @@
   "author": "Jason Matthews <jmatty1983@gmail.com>",
   "license": "ISC",
   "dependencies": {
+    "better-sqlite3": "^5.0.1",
     "ccxt": "^1.17.458",
     "chai": "^4.2.0",
     "deep-freeze": "^0.0.1",
@@ -38,7 +39,6 @@
     "prettier": "^1.14.3",
     "sinon": "^7.1.1",
     "sinon-chai": "^3.2.0",
-    "sqlite3": "^4.0.3",
     "winston": "^3.1.0"
   }
 }

@@ -71,41 +71,39 @@ switch (fn) {
       }
 
       const neat = Object.create(Neat);
-      neat
-        .init({
-          pair: args[1],
-          type: args[2],
-          length: args[3],
-          networkConfig,
-          indicatorConfig,
-          exchange,
-          dataDir,
-          dbExt
-        })
-        .then(() => {
-          if (!neat.data.length) {
-            const prompt = readline.createInterface({
-              input: process.stdin,
-              output: process.stdout
-            });
-            prompt.question(
-              `There is no data for ${args[1]} ${args[2]} ${
-                args[3]
-              } would you like it processed now? (y/n)`,
-              async answer => {
-                if (answer.toLowerCase() === "y") {
-                  await processCandles(args[1], args[2], args[3]);
-                  Logger.info("Data processed. You can run GA again.");
-                } else {
-                  Logger.info("Data must be processed before running GA");
-                }
-                process.exit();
-              }
-            );
-          } else {
-            neat.start();
-          }
+      neat.init({
+        pair: args[1],
+        type: args[2],
+        length: args[3],
+        networkConfig,
+        indicatorConfig,
+        exchange,
+        dataDir,
+        dbExt
+      });
+
+      if (!neat.data.length) {
+        const prompt = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout
         });
+        prompt.question(
+          `There is no data for ${args[1]} ${args[2]} ${
+            args[3]
+          } would you like it processed now? (y/n)`,
+          answer => {
+            if (answer.toLowerCase() === "y") {
+              processCandles(args[1], args[2], args[3]);
+              Logger.info("Data processed. You can run GA again.");
+            } else {
+              Logger.info("Data must be processed before running GA");
+            }
+            process.exit();
+          }
+        );
+      } else {
+        neat.start();
+      }
       break;
     } catch (e) {
       Logger.error(e.message);
@@ -114,10 +112,10 @@ switch (fn) {
     Logger.error(`Invalid action ${fn}. Valid options are: ${actions}`);
 }
 
-async function processCandles(pair, type, length) {
+function processCandles(pair, type, length) {
   const dataManager = Object.create(DataManager);
   dataManager.init(exchange, dataDir, dbExt);
 
   const types = length.split(",").map(length => ({ type: type, length }));
-  await dataManager.processCandles(pair, types);
+  dataManager.processCandles(pair, types);
 }

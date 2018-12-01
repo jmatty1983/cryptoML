@@ -11,10 +11,9 @@ const exchangeImporter = {
    * @param {string} exchange - exchange name
    */
   init: function(exchange, dataDir, dbExt) {
-    const dataManager = Object.create(DataManager);
-    this.dataManager = dataManager;
+    this.dataManager = Object.create(DataManager);
     this.exchange = new ccxt[exchange]({ enableRateLimit: true });
-    dataManager.init(exchange, dataDir, dbExt);
+    this.dataManager.init(exchange, dataDir, dbExt);
 
     Logger.info("Exchange import initialized.");
   },
@@ -30,7 +29,7 @@ const exchangeImporter = {
         fromId,
         limit
       });
-      await this.dataManager.storeTrades(batch);
+      this.dataManager.storeTrades(batch);
       return batch.length;
     } catch (e) {
       if (e instanceof ccxt.RequestTimeout) {
@@ -49,8 +48,12 @@ const exchangeImporter = {
       if (pair) {
         pair = pair.toUpperCase();
         //Get the id of the last trade imported and intialize exchange class
-        const lastId = await this.dataManager.getNewestTrade(pair);
-
+        const lastId = this.dataManager.getNewestTrade(pair);
+        if (lastId) {
+          Logger.debug(`trade data detected. Resuming from trade id ${lastId}`);
+        } else {
+          Logger.debug(`trade data not detected, starting from 1`);
+        }
         //This is working under the asusmption that the trade ids begin with 1 for the first and incremented from there
         //This is true for Binance. When / If trying other exchanges this will need testing and possibly modification
 
