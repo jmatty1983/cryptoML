@@ -42,6 +42,12 @@ const TradeManager = {
 
   doLong: function(positionSize, candle) {
     try {
+      if (positionSize > 1) {
+        positionSize = 1;
+      } else if (positionSize < 0) {
+        positionSize = 0;
+      }
+
       if (
         (this.position.type === "none" &&
           positionSize > this.positionChangeThesh) ||
@@ -52,25 +58,35 @@ const TradeManager = {
         const changeAmt = positionSize - this.position.size;
         if (this.position.type === "none") {
           this.position.startCurrency = this.currency;
+          this.position.type = "long";
         }
-        const change = changeAmt * this.position.startCurrency;
-        const cost = change < this.currency ? change : this.currency;
-        this.currency -= cost;
 
         if (changeAmt > 0) {
-          this.asset += (cost * (1 - (this.fees + this.slippage))) / candle[1];
+          const change =
+            changeAmt * this.position.startCurrency > this.currency
+              ? this.currency
+              : changeAmt * this.position.startCurrency;
+          this.currency -= change;
+
+          this.asset +=
+            (change * (1 - (this.fees + this.slippage))) / candle[1];
           this.buys++;
-          if (this.currency < 0) {
-            //this should not be possible
-            throw "Currency dropped below 0.";
-          }
         } else {
-          this.asset += (cost * (1 + (this.fees + this.slippage))) / candle[1];
+          const fullPosition = (1 / this.position.size) * this.asset;
+          const posChange =
+            fullPosition * this.position.size - fullPosition * positionSize;
+          const change = posChange > this.asset ? this.asset : posChange;
+          this.asset -= change;
+
+          const sellVal =
+            change * candle[1] * (1 - (this.fees + this.slippage));
+          this.currency += sellVal;
           this.sells++;
-          if (this.asset < 0) {
-            //this should also not be possible
-            throw "Asset dropped below 0.";
-          }
+        }
+
+        if (this.currency < 0 || this.asset < 0) {
+          console.log(`${this.currency} ${this.asset}`);
+          throw "Currency or Asset dropped below 0";
         }
         this.position.size = positionSize;
       }
@@ -111,7 +127,6 @@ const TradeManager = {
         []
       );
       const output = this.genome.activate(candleInput);
-
       this.handleCandle(candle, output);
     });
 
