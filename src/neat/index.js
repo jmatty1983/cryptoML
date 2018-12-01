@@ -1,9 +1,11 @@
-const { Neat, methods, architect, Network } = require("neataptic");
+const { Neat, methods, architect } = require("neataptic");
+const { Worker } = require("worker_threads");
+const _ = require("lodash");
+const os = require("os");
 
 const { traderConfig } = require("../config/config");
 const DataManager = require("../dataManager");
 const Logger = require("../logger");
-const TradeManager = require("../tradeManager");
 
 const NeatTrainer = {
   init: function({
@@ -60,12 +62,39 @@ const NeatTrainer = {
     return (currency / startCurrency) * 100;
   },
 
-  train: function() {
-    this.neat.population.forEach(genome => {
-      const trader = Object.create(TradeManager);
-      trader.init(genome, this.data, this.trainData, traderConfig);
-      genome.stats = trader.runTrades();
-      genome.score = this.getFitness(genome.stats);
+  train: async function() {
+    //Really considering abstracting the worker log it some where else. It doesn't really belong here.
+    //For now this just creates THREADS at a time and waits for them all to complete before spawning
+    //a new batch. It will be much better to spawn a new thread as soon as one completes. That's next.
+    const chunkedPop = _.chunk(this.neat.population, process.env.THREADS);
+    chunkedPop.forEach(async chunk => {
+      await Promise.all(
+        chunk.map(
+          genome =>
+            new Promise((resolve, reject) => {
+              const worker = new Worker("./src/tradeWorker/index.js", {
+                workerData: {
+                  genome: genome.toJSON(),
+                  data: this.data,
+                  trainData: this.trainData,
+                  traderConfig
+                }
+              });
+
+              worker.on("message", stats => {
+                genome.stats = stats;
+                genome.score = this.getFitness(genome.stats);
+                resolve();
+              });
+              worker.on("error", reject);
+
+              worker.on("exit", code => {
+                if (code !== 0)
+                  reject(new Error(`Worker stopped with exit code ${code}`));
+              });
+            })
+        )
+      );
     });
   },
 
