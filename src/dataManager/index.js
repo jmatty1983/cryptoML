@@ -3,7 +3,7 @@ const _ = require("lodash");
 
 const ArrayUtils = require("../lib/array");
 const Indicators = require("./indicators");
-const Logger = require("../logger/logger");
+const Logger = require("../logger");
 
 const limit = 100000;
 

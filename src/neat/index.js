@@ -1,9 +1,9 @@
 const { Neat, methods, architect, Network } = require("neataptic");
 
 const { traderConfig } = require("../config/config");
-const DataManager = require("../dataManager/dataManager");
-const Logger = require("../logger/logger");
-const TradeManager = require("../tradeManager/tradeManager");
+const DataManager = require("../dataManager");
+const Logger = require("../logger");
+const TradeManager = require("../tradeManager");
 
 const NeatTrainer = {
   init: function({

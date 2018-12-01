@@ -16,7 +16,7 @@ const {
 
 use(sinonChai);
 
-const DataManager = require("./dataManager");
+const DataManager = require(".");
 let dataManager;
 
 describe("Data Manager Module", () => {

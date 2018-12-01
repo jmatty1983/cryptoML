@@ -1,5 +1,5 @@
 const { expect } = require("chai");
-const Neat = require("./Neat");
+const Neat = require(".");
 
 describe("Neat Module", () => {
   it("should have an init function", () => {

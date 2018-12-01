@@ -1,7 +1,7 @@
 const ccxt = require("ccxt");
 
-const DataManager = require("../dataManager/dataManager");
-const Logger = require("../logger/logger");
+const DataManager = require("../dataManager");
+const Logger = require("../logger");
 
 const limit = 1000;
 

@@ -5,7 +5,7 @@ const sinonChai = require("sinon-chai");
 use(sinonChai);
 
 const ccxt = require("ccxt");
-const ExchangeImporter = require("./exchangeImporter");
+const ExchangeImporter = require(".");
 
 let exchangeImporter;
 

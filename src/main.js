@@ -5,10 +5,10 @@ const dbExt = process.env.DB_EXT;
 const readline = require("readline");
 
 const { networkConfig, indicatorConfig } = require("./config/config");
-const ExchangeImport = require("./exchangeImporter/exchangeImporter");
-const DataManager = require("./dataManager/dataManager");
-const Logger = require("./logger/logger");
-const Neat = require("./neat/neat");
+const ExchangeImport = require("./exchangeImporter");
+const DataManager = require("./dataManager");
+const Logger = require("./logger");
+const Neat = require("./neat");
 
 const args = process.argv.slice(2);
 const actions = ["import", "process", "ga"];
