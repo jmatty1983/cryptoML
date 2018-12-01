@@ -54,17 +54,18 @@ describe("Exchange Importer Module", () => {
     );
     fetchTradesStub.onCall(0).throws(new ccxt.RequestTimeout());
     fetchTradesStub.onCall(1).returns(["foo", "bar"]);
+    fetchTradesStub.onCall(0).throws("foo");
 
     const storeBatchStub = sinon.stub(
       exchangeImporter.dataManager,
       "storeTrades"
     );
 
-    try {
-      exchangeImporter.fetchTrades(0, "foo");
-    } catch (e) {}
-
+    exchangeImporter.fetchTrades(0, "foo");
     expect(fetchTradesStub).to.have.been.calledTwice;
+
+    exchangeImporter.fetchTrades(0, "foo");
+    expect(fetchTradesStub).to.have.been.calledThrice;
 
     fetchTradesStub.restore();
     storeBatchStub.restore();
@@ -76,17 +77,24 @@ describe("Exchange Importer Module", () => {
 
   it("should try to store data when calling getPair", async () => {
     const fetchTradesStub = sinon.stub(exchangeImporter, "fetchTrades");
-    const getNewestTradeStub = sinon
-      .stub(exchangeImporter.dataManager, "getNewestTrade")
-      .returns(Promise.resolve(0));
+    const getNewestTradeStub = sinon.stub(
+      exchangeImporter.dataManager,
+      "getNewestTrade"
+    );
 
     fetchTradesStub.onCall(0).returns(1000);
     fetchTradesStub.onCall(1).returns(1000);
     fetchTradesStub.onCall(2).returns(750);
+    fetchTradesStub.onCall(3).returns(750);
 
+    getNewestTradeStub.onCall(0).returns(0);
+    getNewestTradeStub.onCall(1).returns(1);
     await exchangeImporter.getPair("foo");
 
     expect(fetchTradesStub).to.have.been.calledThrice;
+
+    await exchangeImporter.getPair("foo");
+    expect(fetchTradesStub).to.have.callCount(4);
 
     fetchTradesStub.restore();
     getNewestTradeStub.restore();

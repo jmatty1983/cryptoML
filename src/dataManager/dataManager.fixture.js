@@ -136,7 +136,7 @@ const tickOutput = {
       tradeId: 12
     }
   ],
-  tickRemainder: null
+  remainder: null
 };
 
 const timeOutput = {

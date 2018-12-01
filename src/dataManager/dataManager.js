@@ -117,8 +117,7 @@ const DataManager = {
    */
   getNewestTrade: function(table) {
     if (this.checkDataExists(table)) {
-      const dbConn = this.getDb();
-      const ret = dbConn
+      const ret = this.getDb()
         .prepare(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`)
         .get();
 
