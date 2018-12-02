@@ -111,11 +111,12 @@ const NeatTrainer = {
       this.dataManager.normaliseArray(array, this.normalisedPoints[index])
     );
 
-    //split train and test data
-    const half = Math.trunc(this.normalisedData[0].length / 2);
-    this.trainData = this.normalisedData.map(array => array.slice(0, half));
+    //Split data into 60% train, 5% gap, 35% test
+    const trainAmt = Math.trunc(this.normalisedData[0].length * 0.6);
+    const gapAmt = Math.trunc(this.normalisedData[0].length * 0.05);
+    this.trainData = this.normalisedData.map(array => array.slice(0, trainAmt));
     this.testData = this.normalisedData.map(array =>
-      array.slice(half, this.normalisedData[0].length)
+      array.slice(trainAmt + gapAmt)
     );
 
     while (true) {
