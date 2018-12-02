@@ -53,4 +53,17 @@ describe("Array Utilities Module", () => {
     expect(ArrayUtils.getProp("foo", array)).to.eql(expectedFooResult);
     expect(ArrayUtils.getProp("bar", array)).to.eql(expectedBarResult);
   });
+
+  it("Should have a chunk function", () => {
+    expect(typeof ArrayUtils.chunk).to.equal("function");
+  });
+
+  it("should chunk an array when calling chunk", () => {
+    expect(ArrayUtils.chunk([1, 2, 3, 4, 5, 6, 7, 8, 9, 0], 3)).to.eql([
+      [1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9],
+      [0]
+    ]);
+  });
 });

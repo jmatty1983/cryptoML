@@ -1,8 +1,8 @@
 const { Neat, methods, architect } = require("neataptic");
 const { Worker } = require("worker_threads");
-const _ = require("lodash");
 const os = require("os");
 
+const ArrayUtils = require("../lib/array");
 const { traderConfig } = require("../config/config");
 const DataManager = require("../dataManager");
 const Logger = require("../logger");
@@ -64,41 +64,46 @@ const NeatTrainer = {
 
   train: async function() {
     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
-    //For now this just creates THREADS at a time and waits for them all to complete before spawning
-    //a new batch. It will be much better to spawn a new thread as soon as one completes. That's next.
-    const chunkedPop = _.chunk(this.neat.population, process.env.THREADS);
-    chunkedPop.forEach(async chunk => {
-      await Promise.all(
-        chunk.map(
-          genome =>
-            new Promise((resolve, reject) => {
-              const worker = new Worker("./src/tradeWorker/index.js", {
-                workerData: {
-                  genome: genome.toJSON(),
-                  data: this.data,
-                  trainData: this.trainData,
-                  traderConfig
-                }
-              });
+    this.neat.population.forEach((genome, i) => (genome.id = i));
+    const chunkedPop = ArrayUtils.chunk(
+      this.neat.population,
+      Math.floor(this.neat.population.length / process.env.THREADS)
+    );
 
-              worker.on("message", stats => {
-                genome.stats = stats;
-                genome.score = this.getFitness(genome.stats);
-                resolve();
-              });
-              worker.on("error", reject);
+    const work = chunkedPop.map(chunk => {
+      const genomes = chunk.map(genome => ({
+        genome: genome.toJSON(),
+        id: genome.id
+      }));
+      return new Promise((resolve, reject) => {
+        const worker = new Worker("./src/tradeWorker/index.js", {
+          workerData: {
+            data: this.data,
+            trainData: this.trainData,
+            genomes,
+            traderConfig
+          }
+        });
 
-              worker.on("exit", code => {
-                if (code !== 0)
-                  reject(new Error(`Worker stopped with exit code ${code}`));
-              });
-            })
-        )
-      );
+        worker.on("message", resolve);
+        worker.on("error", reject);
+
+        worker.on("exit", code => {
+          if (code !== 0) {
+            reject(new Error(`Worker stopped with exit code ${code}`));
+          }
+        });
+      });
+    });
+
+    let results = ArrayUtils.flatten(await Promise.all(work));
+    results.forEach(({ stats, id }) => {
+      this.neat.population[id].stats = stats;
+      this.neat.population[id].score = this.getFitness(stats);
     });
   },
 
-  start: function() {
+  start: async function() {
     Logger.info("Starting genome search");
     this.normalisedPoints = this.data.map(this.dataManager.getNormalisedPoints);
     this.normalisedData = this.data.map((array, index) =>
@@ -113,7 +118,7 @@ const NeatTrainer = {
     );
 
     while (true) {
-      this.train();
+      await this.train();
       this.breed();
       this.generations++;
     }

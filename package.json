@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "node --experimental-worker src/main",
-    "test": "nyc mocha -c \"./src/**/*.spec.js*\" && nyc report --reporter=html"
+    "test": "nyc node --experimental-worker node_modules/mocha/bin/_mocha -c \"./src/**/*.spec.js*\" && nyc report --reporter=html"
   },
   "husky": {
     "hooks": {

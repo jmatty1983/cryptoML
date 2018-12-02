@@ -10,6 +10,28 @@ const ArrayUtils = {
   },
 
   /**
+   * Returns an array of arrays of size n
+   *
+   * @param {Array} array - array to operate on
+   * @param {Number} n - size of chunks
+   * @return {Array[Array]}
+   */
+  chunk: function(array, n) {
+    return array.length
+      ? [array.slice(0, n), ...this.chunk(array.slice(n), n)]
+      : [];
+  },
+
+  /**
+   * Flattens an array by 1 level
+   *
+   * @param {Array} array - Array to flatten
+   * @returns {Array}
+   */
+  flatten: function(array) {
+    return [].concat.apply([], array);
+  },
+  /**
    * Takes an array of objects and returns an array of the values from a property name
    *
    * @param {string} prop - string name for property
