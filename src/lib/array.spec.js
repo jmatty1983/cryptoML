@@ -66,4 +66,23 @@ describe("Array Utilities Module", () => {
       [0]
     ]);
   });
+
+  it("Should have a flatten function", () => {
+    expect(typeof ArrayUtils.chunk).to.equal("function");
+  });
+
+  it("should flatten an array when calling flatten", () => {
+    expect(ArrayUtils.flatten([[1, 2, 3], [4, 5, 6], [7, 8, 9], [0]])).to.eql([
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      0
+    ]);
+  });
 });

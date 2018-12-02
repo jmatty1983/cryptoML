@@ -1,6 +1,6 @@
 //IMPORTANT: All of these configs should be saved with the network genomes
 
-exports.networkConfig = {
+exports.neatConfig = {
   populationSize: 100,
   mutationRate: 0.5,
   fitBreedAmt: 0.1,

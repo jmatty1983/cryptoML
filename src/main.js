@@ -4,7 +4,7 @@ const dbExt = process.env.DB_EXT;
 
 const readline = require("readline");
 
-const { networkConfig, indicatorConfig } = require("./config/config");
+const { neatConfig, indicatorConfig } = require("./config/config");
 const ExchangeImport = require("./exchangeImporter");
 const DataManager = require("./dataManager");
 const Logger = require("./logger");
@@ -75,7 +75,7 @@ switch (fn) {
         pair: args[1],
         type: args[2],
         length: args[3],
-        networkConfig,
+        neatConfig,
         indicatorConfig,
         exchange,
         dataDir,

@@ -14,7 +14,7 @@ const ArrayUtils = {
    *
    * @param {Array} array - array to operate on
    * @param {Number} n - size of chunks
-   * @return {Array[Array]}
+   * @returns {Array[Array]}
    */
   chunk: function(array, n) {
     return array.length
