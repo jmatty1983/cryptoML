@@ -63,8 +63,6 @@ const NeatTrainer = {
   },
 
   train: async function() {
-    const startWorker = process.hrtime.bigint();
-
     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
     const threads = process.env.THREADS || os.cpus().length;
     this.neat.population.forEach((genome, i) => (genome.id = i));
@@ -104,25 +102,6 @@ const NeatTrainer = {
       this.neat.population[id].stats = stats;
       this.neat.population[id].score = this.getFitness(stats);
     });
-
-    const endWorker = process.hrtime.bigint();
-    const workerTime = (endWorker - startWorker) / 1000000n;
-    console.log(`Workers took ${workerTime}ms`);
-
-    //=========================================================================
-    const startNormal = process.hrtime.bigint();
-
-    this.neat.population.forEach(genome => {
-      const trader = Object.create(TradeManager);
-      trader.init(genome, this.data, this.trainData, traderConfig);
-      genome.stats = trader.runTrades();
-      genome.score = this.getFitness(genome.stats);
-    });
-
-    const endNormal = process.hrtime.bigint();
-    const normalTime = (endNormal - startNormal) / 1000000n;
-    console.log(`Single thread took ${normalTime}ms`);
-    console.log(`Worker is ${normalTime - workerTime}ms faster`);
   },
 
   start: async function() {
