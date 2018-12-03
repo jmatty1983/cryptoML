@@ -194,18 +194,20 @@ const DataManager = {
    * Candle is a candle is a candle is a candle. All get built the same, only difference is
    * how we decide which trades to build them from
    * @param {array{}} - array of trade objects
-   * @returns {object} - returns a candle object of type OHLCV
+   * @returns {object} - returns a candle object of type OHLCV tradeId startTime endTime
    */
   makeCandle: function(trades) {
     return trades.reduce(
-      (acc, trade) => {
-        acc.open = acc.open || trade.price;
-        acc.close = trade.price;
-        acc.high = trade.price > acc.high ? trade.price : acc.high;
-        acc.low = trade.price < acc.low ? trade.price : acc.low;
-        acc.volume += trade.quantity;
-        acc.tradeId = trade.tradeId;
-        return acc;
+      (candle, trade) => {
+        candle.startTime = candle.startTime || trade.timestamp;
+        candle.endTime = trade.timestamp;
+        candle.open = candle.open || trade.price;
+        candle.close = trade.price;
+        candle.high = trade.price > candle.high ? trade.price : candle.high;
+        candle.low = trade.price < candle.low ? trade.price : candle.low;
+        candle.volume += trade.quantity;
+        candle.tradeId = trade.tradeId;
+        return candle;
       },
       { volume: 0, high: 0, low: Infinity }
     );
@@ -375,16 +377,26 @@ const DataManager = {
       const dbConn = this.getDb();
       dbConn
         .prepare(
-          `CREATE TABLE IF NOT EXISTS [${table}] (id INTEGER PRIMARY KEY AUTOINCREMENT, open REAL, close REAL, high REAL, low REAL, volume REAL, tradeId INTEGER)`
+          `CREATE TABLE IF NOT EXISTS [${table}] (id INTEGER PRIMARY KEY AUTOINCREMENT, open REAL, close REAL, high REAL, low REAL, volume REAL, tradeId INTEGER, startTime INTEGER, endTime INTEGER)`
         )
         .run();
 
       const insertStmt = dbConn.prepare(
-        `INSERT INTO [${table}] (open, close, high, low, volume, tradeId) VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO [${table}] (open, close, high, low, volume, tradeId, startTime, endTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       );
       dbConn.transaction(() => {
-        candles.forEach(({ open, close, high, low, volume, tradeId }) =>
-          insertStmt.run(open, close, high, low, volume, tradeId)
+        candles.forEach(
+          ({ open, close, high, low, volume, tradeId, startTime, endTime }) =>
+            insertStmt.run(
+              open,
+              close,
+              high,
+              low,
+              volume,
+              tradeId,
+              startTime,
+              endTime
+            )
         );
       })();
       Logger.debug(`${candles.length} added to ${table}`);
