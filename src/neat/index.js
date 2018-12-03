@@ -1,12 +1,18 @@
+const fs = require("fs");
 const { Neat, methods, architect } = require("neataptic");
-const { Worker } = require("worker_threads");
 const os = require("os");
+const path = require("path");
+const { Worker } = require("worker_threads");
 
 const ArrayUtils = require("../lib/array");
-const { traderConfig } = require("../config/config");
+const {
+  traderConfig,
+  indicatorConfig,
+  neatConfig
+} = require("../config/config");
 const DataManager = require("../dataManager");
 const Logger = require("../logger");
-const TradeManager = require("../tradeManager");
+
 const NeatTrainer = {
   init: function({
     exchange,
@@ -24,6 +30,10 @@ const NeatTrainer = {
     this.indicatorConfig = indicatorConfig;
     this.archive = [];
     this.generations = 0;
+    this.highScore = -Infinity;
+    this.pair = pair;
+    this.type = type;
+    this.length = length;
     this.data = this.dataManager.checkDataExists(pair, type, length)
       ? this.dataManager.loadData(pair, type, length, indicatorConfig)
       : [];
@@ -81,6 +91,7 @@ const NeatTrainer = {
           workerData: {
             data: this.data,
             trainData: this.trainData,
+            testData: this.testData,
             genomes,
             traderConfig
           }
@@ -98,9 +109,30 @@ const NeatTrainer = {
     });
 
     let results = ArrayUtils.flatten(await Promise.all(work));
-    results.forEach(({ stats, id }) => {
-      this.neat.population[id].stats = stats;
-      this.neat.population[id].score = this.getFitness(stats);
+    results.forEach(({ trainStats, testStats, id }) => {
+      this.neat.population[id].stats = trainStats;
+      this.neat.population[id].score = this.getFitness(trainStats);
+      const testScore = this.getFitness(testStats);
+      if (testScore > this.highScore) {
+        const data = {
+          genome: this.neat.population[id].toJSON(),
+          traderConfig,
+          indicatorConfig,
+          neatConfig
+        };
+
+        const safePairName = this.pair.replace(/[^a-z0-9]/gi, "");
+        const filename = `${safePairName}_${this.type}_${
+          this.length
+        }_${testScore}`;
+        const dir = `${__dirname}/../../genomes/${safePairName}`;
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir);
+        }
+
+        fs.writeFileSync(`${dir}/${filename}`, JSON.stringify(data));
+        this.highScore = testScore;
+      }
     });
   },
 

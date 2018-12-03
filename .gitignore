@@ -27,6 +27,7 @@ jspm_packages/
 
 # sqlite stuffs
 data/
+genomes/
 
 # doc stuff which maybe i won't ignore later but for now it's not super useful
 docs/
