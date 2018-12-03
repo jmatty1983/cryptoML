@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "node --experimental-worker src/main",
-    "start:ui": "next",
+    "start:ui": "next ui",
     "test": "nyc node --experimental-worker node_modules/mocha/bin/_mocha -c \"./src/**/*.spec.js*\" && nyc report --reporter=html"
   },
   "husky": {
@@ -26,6 +26,7 @@
   "author": "Jason Matthews <jmatty1983@gmail.com>",
   "license": "ISC",
   "dependencies": {
+    "@material-ui/core": "^3.6.1",
     "better-sqlite3": "^5.0.1",
     "ccxt": "^1.17.458",
     "chai": "^4.2.0",
