@@ -1,26 +1,39 @@
+require("dotenv-safe").config();
+
 const express = require("express");
-const next = require("next");
+const path = require("path");
+const webpack = require("webpack");
+const webpackConfig = require("../webpack.config");
+const compiler = webpack(webpackConfig);
 
-const dev = process.env.NODE_ENV !== "production";
-const app = next({ dir: "./ui", dev });
-const handle = app.getRequestHandler();
+const DataManager = require("../src/dataManager");
 
-app
-  .prepare()
-  .then(() => {
-    const server = express();
+const exchange = "binance";
+const dataDir = process.env.DATA_DIR;
+const dbExt = process.env.DB_EXT;
 
-    server.get("*", (req, res) => handle(req, res));
+const app = express();
 
-    server.listen(3000, err => {
-      if (err) {
-        throw err;
-      }
+// app.use(
+//   require('webpack-dev-middleware')(compiler, {
+//     noInfo: true,
+//     publicPath: webpackConfig.output.publicPath
+//   })
+// );
+// app.use(require('webpack-hot-middleware')(compiler));
+app.use(express.static(path.join(__dirname, "./.dist")));
+app.get("/chart/json/:table", (req, res) => {
+  const dataManager = Object.create(DataManager);
+  dataManager.init(exchange, dataDir, dbExt);
+  const candles = dataManager.loadCandles(
+    `[${decodeURIComponent(req.params.table)}]`
+  );
+  res.setHeader("Content-Type", "application/json");
+  res.json(candles);
+});
 
-      console.log("> Ready on http://localhost:3000");
-    });
-  })
-  .catch(ex => {
-    console.error(ex.stack);
-    process.exit(1);
-  });
+app.get("*", (req, res) =>
+  res.sendFile(path.resolve(__dirname, "./.dist/index.html"))
+);
+
+app.listen(3000, () => console.log("App listening on port 3000!"));
