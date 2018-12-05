@@ -11,13 +11,8 @@ pids
 *.seed
 *.pid.lock
 
-# Compiled binary addons (https://nodejs.org/api/addons.html)
-build/Release
-.next/
-
 # Dependency directories
 node_modules/
-jspm_packages/
 
 # Optional npm cache directory
 .npm
@@ -35,3 +30,5 @@ docs/
 # Coverage info
 .nyc_output/
 coverage/
+
+ui/dist/bundle.js

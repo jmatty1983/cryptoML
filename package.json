@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node --experimental-worker src/main",
     "start:ui": "node ui/server.js",
+    "build:ui": "webpack --mode development",
     "test": "nyc node --experimental-worker node_modules/mocha/bin/_mocha -c \"./src/**/*.spec.js*\" && nyc report --reporter=html"
   },
   "husky": {
@@ -29,7 +30,6 @@
     "@babel/core": "^7.2.0",
     "@babel/preset-env": "^7.2.0",
     "@babel/preset-react": "^7.0.0",
-    "@material-ui/core": "^3.6.1",
     "babel-loader": "^8.0.4",
     "better-sqlite3": "^5.0.1",
     "ccxt": "^1.17.458",
