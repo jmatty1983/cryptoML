@@ -1,5 +1,4 @@
 const db = require("better-sqlite3");
-const _ = require("lodash");
 
 const ArrayUtils = require("../lib/array");
 const Indicators = require("./indicators");
@@ -35,7 +34,7 @@ const DataManager = {
   buildCandles: function({ type, length, rows }) {
     switch (type) {
       case "tick":
-        const tickChunks = _.chunk(rows, length);
+        const tickChunks = ArrayUtils.chunk(rows, length);
         const tickRemainder =
           tickChunks[tickChunks.length - 1].length < length
             ? tickChunks.pop()

@@ -1,50 +1,39 @@
 require("dotenv-safe").config();
 
 const express = require("express");
-const next = require("next");
+const path = require("path");
+const webpack = require("webpack");
+const webpackConfig = require("../webpack.config");
+const compiler = webpack(webpackConfig);
 
 const DataManager = require("../src/dataManager");
-const dev = process.env.NODE_ENV !== "production";
-const app = next({ dir: "./ui", dev });
-const handle = app.getRequestHandler();
 
-let exchange = "binance";
+const exchange = "binance";
 const dataDir = process.env.DATA_DIR;
 const dbExt = process.env.DB_EXT;
 
-app
-  .prepare()
-  .then(() => {
-    const server = express();
+const app = express();
 
-    server.get("/chart/:table", (req, res) => {
-      const actualPage = "/Chart";
-      const queryParams = {
-        table: encodeURIComponent(req.params.table)
-      };
-      app.render(req, res, actualPage, queryParams);
-    });
+// app.use(
+//   require('webpack-dev-middleware')(compiler, {
+//     noInfo: true,
+//     publicPath: webpackConfig.output.publicPath
+//   })
+// );
+// app.use(require('webpack-hot-middleware')(compiler));
+app.use(express.static(path.join(__dirname, "./.dist")));
+app.get("/chart/json/:table", (req, res) => {
+  const dataManager = Object.create(DataManager);
+  dataManager.init(exchange, dataDir, dbExt);
+  const candles = dataManager.loadCandles(
+    `[${decodeURIComponent(req.params.table)}]`
+  );
+  res.setHeader("Content-Type", "application/json");
+  res.json(candles);
+});
 
-    server.get("/chart/json/:table", (req, res) => {
-      const dataManager = Object.create(DataManager);
-      dataManager.init(exchange, dataDir, dbExt);
-      const candles = dataManager.loadCandles(
-        `[${decodeURIComponent(req.params.table)}]`
-      );
-      res.send(JSON.stringify(candles));
-    });
+app.get("*", (req, res) =>
+  res.sendFile(path.resolve(__dirname, "./.dist/index.html"))
+);
 
-    server.get("*", (req, res) => handle(req, res));
-
-    server.listen(3000, err => {
-      if (err) {
-        throw err;
-      }
-
-      console.log("> Ready on http://localhost:3000");
-    });
-  })
-  .catch(ex => {
-    console.error(ex.stack);
-    process.exit(1);
-  });
+app.listen(3000, () => console.log("App listening on port 3000!"));

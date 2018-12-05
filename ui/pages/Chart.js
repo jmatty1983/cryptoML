@@ -1,22 +1,28 @@
-import fetch from "isomorphic-unfetch";
+import React, { useEffect, useState } from "react";
 
-import Layout from "../components/Layout.js";
-//import { CanvasJS, CanvasJSChart  } from '../canvas/canvasjs.react';
+const Chart = props => {
+  const table = props.match.params.table;
+  const [data, setData] = useState({});
+  const [loading, setLoading] = useState(true);
 
-const Chart = props => (
-  <Layout>
-    <div>
-      <p>{JSON.stringify(props.data)}</p>
-    </div>
-  </Layout>
-);
+  const fetchData = async table => {
+    const response = await fetch(`/chart/json/${table}`);
+    const json = await response.json();
+    setData(json);
+    setLoading(false);
+  };
 
-Chart.getInitialProps = async function(context) {
-  const res = await fetch(
-    `http://localhost:3000/Chart/json/${context.query.table}`
+  useEffect(() => {
+    setLoading(true);
+    fetchData(table);
+  }, []);
+
+  const display = loading ? (
+    <div>Loading</div>
+  ) : (
+    <div>{JSON.stringify(data)}</div>
   );
-  const data = await res.json();
-  return { data };
+  return <>{display}</>;
 };
 
 export default Chart;
