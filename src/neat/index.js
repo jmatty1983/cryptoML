@@ -2,7 +2,7 @@ const fs = require("fs");
 const { Neat, methods, architect } = require("neataptic");
 const os = require("os");
 const path = require("path");
-const { Worker } = require("worker_threads");
+const { Worker, MessageChannel } = require("worker_threads");
 
 const ArrayUtils = require("../lib/array");
 const {
@@ -37,7 +37,7 @@ const NeatTrainer = {
     this.workers = Array(
       parseInt(process.env.THREADS) || os.cpus().length
     ).fill(null);
-    this.workers.pop();
+
     this.data = this.dataManager.checkDataExists(pair, type, length)
       ? this.dataManager.loadData(pair, type, length, indicatorConfig)
       : [];
@@ -59,7 +59,7 @@ const NeatTrainer = {
   breed: function() {
     this.neat.sort();
     Logger.debug(
-      `Generation: ${this.generations} - ${this.neat.population[0].score} ${
+      `Gen: ${this.generations} - ${this.neat.population[0].score} ${
         this.neat.population[0].stats.buys
       } ${this.neat.population[0].stats.sells}`
     );
@@ -79,7 +79,7 @@ const NeatTrainer = {
     this.neat.population.forEach((genome, i) => (genome.id = i));
     const chunkedPop = ArrayUtils.chunk(
       this.neat.population,
-      Math.trunc(this.neat.population.length / this.workers.length)
+      Math.ceil(this.neat.population.length / this.workers.length)
     );
 
     const work = chunkedPop.map((chunk, i) => {
@@ -88,10 +88,13 @@ const NeatTrainer = {
           genome: genome.toJSON(),
           id: genome.id
         }));
-        this.workers[i].postMessage(genomes);
 
-        this.workers[i].on("message", resolve);
-        this.workers[i].on("error", err => {
+        const { port1, port2 } = new MessageChannel();
+        this.workers[i].postMessage({ port: port1 }, [port1]);
+        port2.postMessage(genomes);
+
+        port2.on("message", resolve);
+        port2.on("error", err => {
           Logger.error(`Worker thread error ${err}`);
           reject(err);
         });
