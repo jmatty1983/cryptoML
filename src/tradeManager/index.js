@@ -118,7 +118,7 @@ const TradeManager = {
       this.posTrigger = !this.posTrigger
     }*/
 
-    if (!(this.tickCount & 7)) {
+    if (!(this.tickCount & 1)) {
       const currentWorth =
         this.currency +
         this.asset * (1 - (this.fees + this.slippage)) * candle[1];
