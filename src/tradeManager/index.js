@@ -31,6 +31,22 @@ const TradeManager = {
     this.buys = 0;
     this.sells = 0;
 
+    this.posTrigger = false;
+
+    this.prevWorth = this.startCurrency;
+    this.ticksLost = 0;
+    this.ticksWon = 0;
+    this.avgWin = 0;
+    this.avgLoss = 0;
+
+    this.tickCount = 0;
+
+    this.avgPosAdd = 0;
+    this.avgPosRem = 0;
+
+    this.totalTime = 0;
+    this.exposure = 0;
+
     //More notes for future me. It may be worth experimenting with inputting current position
     //information for the model.
     this.position = {
@@ -44,54 +60,37 @@ const TradeManager = {
     try {
       if (positionSize > 1) {
         positionSize = 1;
-      } else if (positionSize < 0) {
-        positionSize = 0;
+      } else if (positionSize < -1) {
+        positionSize = -1;
       }
 
-      if (
-        (this.position.type === "none" &&
-          positionSize > this.positionChangeThesh) ||
-        (this.position.type === "long" &&
-          Math.abs(positionSize - this.position.size) >
-            this.positionChangeThesh)
-      ) {
-        const changeAmt = positionSize - this.position.size;
-        if (this.position.type === "none") {
-          this.position.startCurrency = this.currency;
-          this.position.type = "long";
-        }
+      const changeAmt = positionSize;
 
-        if (changeAmt > 0) {
-          const change =
-            changeAmt * this.position.startCurrency > this.currency
-              ? this.currency
-              : changeAmt * this.position.startCurrency;
-          this.currency -= change;
+      if (changeAmt > 0 && this.currency > 0) {
+        const change = this.currency * changeAmt;
+        this.currency -= change;
 
-          this.asset +=
-            (change * (1 - (this.fees + this.slippage))) / candle[1];
-          this.buys++;
-        } else {
-          const fullPosition = (1 / this.position.size) * this.asset;
-          const posChange =
-            fullPosition * this.position.size - fullPosition * positionSize;
-          const change = posChange > this.asset ? this.asset : posChange;
-          this.asset -= change;
+        this.avgPosAdd += changeAmt;
 
-          const sellVal =
-            change * candle[1] * (1 - (this.fees + this.slippage));
-          this.currency += sellVal;
-          this.sells++;
-        }
+        this.asset += (change * (1 - (this.fees + this.slippage))) / candle[1];
+        this.buys++;
+      } else if (changeAmt < 0 && this.asset > 0) {
+        const change = this.asset * -changeAmt;
+        this.asset -= change;
 
-        if (this.currency < 0 || this.asset < 0) {
-          console.log(`${this.currency} ${this.asset}`);
-          throw "Currency or Asset dropped below 0";
-        }
-        this.position.size = positionSize;
+        this.avgPosRem -= changeAmt;
+
+        const sellVal = change * (1 - (this.fees + this.slippage)) * candle[1];
+        this.currency += sellVal;
+        this.sells++;
+      }
+
+      if (this.currency < 0 || this.asset < 0) {
+        console.log(`${this.currency} ${this.asset}`);
+        throw "Currency or Asset dropped below 0";
       }
     } catch (e) {
-      Logger.error(e);
+      Logger.error(`${e}`);
       process.exit();
     }
   },
@@ -104,13 +103,38 @@ const TradeManager = {
   handleCandle: function(candle, [signal, positionSize]) {
     positionSize = positionSize === undefined ? 1 : positionSize;
 
-    if (signal > this.longThresh) {
+    if (signal > this.longThresh && !this.posTrigger) {
+      //      this.posTrigger = !this.posTrigger
       this.doLong(positionSize, candle);
+    } else if (signal < -this.longThresh && !this.posTrigger) {
+      //      this.posTrigger = !this.posTrigger
+      this.doLong(-positionSize, candle);
     } else if (signal < this.shortThresh) {
       //this.doShort(positionSize, candle);
     } else {
       //do something? Exit all positions maybe?
     }
+    /*  if( signal < this.longThresh && signal > -this.longThresh && this.posTrigger) {
+      this.posTrigger = !this.posTrigger
+    }*/
+
+    if (!(this.tickCount & 7)) {
+      const currentWorth =
+        this.currency +
+        this.asset * (1 - (this.fees + this.slippage)) * candle[1];
+      const deltaWorth = currentWorth - this.prevWorth;
+      this.prevWorth = currentWorth;
+
+      if (deltaWorth > 0) {
+        this.avgWin += deltaWorth;
+        this.ticksWon++;
+      } else if (deltaWorth < 0) {
+        this.avgLoss += deltaWorth;
+        this.ticksLost++;
+      }
+    }
+
+    this.tickCount++;
   },
 
   //leaving thoughts here for future me. probably don't need the raw candle data to be
@@ -126,7 +150,7 @@ const TradeManager = {
         (array, item) => [...array, item[index]],
         []
       );
-      const output = this.genome.activate(candleInput);
+      const output = this.genome.noTraceActivate(candleInput);
       this.handleCandle(candle, output);
     });
 
@@ -136,7 +160,13 @@ const TradeManager = {
       asset: this.asset,
       value: this.currency + this.asset * this.data[this.data.length - 1][1],
       buys: this.buys,
-      sells: this.sells
+      sells: this.sells,
+      ticksWon: this.ticksWon,
+      ticksLost: this.ticksLost,
+      avgWin: this.avgWin / this.ticksWon,
+      avgLoss: this.avgLoss / this.ticksLost,
+      avgPosAdd: this.avgPosAdd / this.buys,
+      avgPosRem: this.avgPosRem / this.sells
     };
   }
 };

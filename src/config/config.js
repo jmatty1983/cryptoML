@@ -1,8 +1,8 @@
 //IMPORTANT: All of these configs should be saved with the network genomes
 
 exports.neatConfig = {
-  populationSize: 100,
-  mutationRate: 0.5,
+  populationSize: 128,
+  mutationRate: 0.25,
   fitBreedAmt: 0.1,
   rndBreedAmt: 0.1,
   //1 - Buy Sell Only
@@ -45,7 +45,7 @@ exports.indicatorConfig = [
 
 exports.traderConfig = {
   //Threshold for network signal output to be interpreted as going long
-  longThresh: 0.333,
+  longThresh: 1 / 6,
   //Threshold for network signal output to be interpreted as going short
   shortThresh: 0,
   //Minimum positions size change required before placing an order

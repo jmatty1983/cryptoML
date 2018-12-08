@@ -13,6 +13,38 @@ const {
 const DataManager = require("../dataManager");
 const Logger = require("../logger");
 
+const mutation = methods.mutation;
+const mutations = [
+  mutation.ADD_NODE,
+  mutation.SUB_NODE,
+
+  mutation.ADD_CONN,
+  mutation.SUB_CONN,
+
+  mutation.MOD_WEIGHT,
+  mutation.MOD_BIAS,
+  mutation.MOD_ACTIVATION,
+  mutation.MOD_WEIGHT,
+  mutation.MOD_BIAS,
+  mutation.MOD_ACTIVATION,
+  mutation.MOD_WEIGHT,
+  mutation.MOD_BIAS,
+  mutation.MOD_ACTIVATION,
+  mutation.MOD_ACTIVATION,
+
+  mutation.ADD_GATE,
+  mutation.SUB_GATE,
+
+  mutation.ADD_SELF_CONN,
+  mutation.SUB_SELF_CONN,
+
+  mutation.ADD_BACK_CONN,
+  mutation.SUB_BACK_CONN,
+
+  mutation.SWAP_NODES
+  //  mutation.SWAP_NODES
+];
+
 const NeatTrainer = {
   init: function({
     exchange,
@@ -29,7 +61,7 @@ const NeatTrainer = {
     this.neatConfig = neatConfig;
     this.indicatorConfig = indicatorConfig;
     this.archive = [];
-    this.generations = 0;
+    this.generation = 1;
     this.highScore = -Infinity;
     this.pair = pair;
     this.type = type;
@@ -37,31 +69,54 @@ const NeatTrainer = {
     this.workers = Array(
       parseInt(process.env.THREADS) || os.cpus().length
     ).fill(null);
-
     this.data = this.dataManager.checkDataExists(pair, type, length)
       ? this.dataManager.loadData(pair, type, length, indicatorConfig)
       : [];
 
-    if (this.data.length) {
+    /*    if (this.data.length) {
       this.neat = new Neat(this.data.length, 1, null, {
         mutation: methods.mutation.ALL,
         popsize: this.neatConfig.populationSize,
         mutationRate: this.neatConfig.mutationRate,
-        network: new architect.Random(
+      });
+
+      this.neat.population = this.neat.population.map( m => new architect.Random(
           this.data.length,
           1,
-          this.neatConfig.outputSize
-        )
-      });
-    }
+          this.neatConfig.outputSize)
+      )
+    }*/
   },
 
   breed: function() {
     this.neat.sort();
+    const R =
+      this.neat.population[0].stats.avgWin /
+      -this.neat.population[0].stats.avgLoss;
     Logger.debug(
       `Gen: ${this.generations} - ${this.neat.population[0].score} ${
         this.neat.population[0].stats.buys
-      } ${this.neat.population[0].stats.sells}`
+      } ${this.neat.population[0].stats.sells} R:${R}`
+      /*        this.generation +
+        " " +
+        this.neat.population[0].score +
+        " " +
+        this.neat.population[0].stats.buys +
+        " " +
+        this.neat.population[0].stats.sells +
+        " " +
+        this.neat.population[0].stats.avgPosAdd +
+        " " +
+        this.neat.population[0].stats.avgPosRem +
+        " " +
+        this.neat.population[0].stats.ticksWon / (this.neat.population[0].stats.ticksWon+this.neat.population[0].stats.ticksLost) +
+        " W:" +
+        this.neat.population[0].stats.avgWin +
+        " L:" +
+        this.neat.population[0].stats.avgLoss +
+        " R:" +
+        this.neat.population[0].stats.avgWin / -this.neat.population[0].stats.avgLoss
+  */
     );
     this.neat.population = new Array(this.neat.popsize)
       .fill(null)
@@ -70,8 +125,8 @@ const NeatTrainer = {
     this.neat.mutate();
   },
 
-  getFitness: function({ currency, startCurrency }) {
-    return (currency / startCurrency) * 100;
+  getFitness: function({ currency, startCurrency, buys, sells }) {
+    return (currency / startCurrency) * 100; //* (buys<2||sells<2?0:1);
   },
 
   train: async function() {
@@ -81,6 +136,8 @@ const NeatTrainer = {
       this.neat.population,
       Math.ceil(this.neat.population.length / this.workers.length)
     );
+
+    //    console.log(this.workers)
 
     const work = chunkedPop.map((chunk, i) => {
       return new Promise((resolve, reject) => {
@@ -118,8 +175,8 @@ const NeatTrainer = {
         };
 
         const safePairName = this.pair.replace(/[^a-z0-9]/gi, "");
-        const filename = `${safePairName}_${this.type}_${
-          this.length
+        const filename = `${safePairName}_${this.type}_${this.length}_gen_${
+          this.generation
         }_${testScore}`;
         const dir = `${__dirname}/../../genomes/${safePairName}`;
         if (!fs.existsSync(dir)) {
@@ -134,10 +191,40 @@ const NeatTrainer = {
 
   start: async function() {
     Logger.info("Starting genome search");
-    this.normalisedPoints = this.data.map(this.dataManager.getNormalisedPoints);
-    this.normalisedData = this.data.map((array, index) =>
-      this.dataManager.normaliseArray(array, this.normalisedPoints[index])
-    );
+    // this.normalisedPoints = this.data.map(this.dataManager.getNormalisedPoints);
+    // this.normalisedData = this.data.map((array, index) =>
+    // this.dataManager.normaliseArray(array, this.normalisedPoints[index])
+    // );
+
+    this.normalisedData = this.data
+      .filter((_, index) => index === 2 || index === 3 || index === 4)
+      .map((array, index) => {
+        return array.map((_, i) => {
+          return i > 0 ? Math.log2(array[i] / array[i - 1]) : 0;
+        });
+      });
+
+    if (this.normalisedData.length) {
+      Logger.info(
+        `Creating new population. I/O size: ${this.normalisedData.length}/${
+          this.neatConfig.outputSize
+        }`
+      );
+      this.neat = new Neat(this.normalisedData.length, 1, null, {
+        mutation: methods.mutation.ALL,
+        popsize: this.neatConfig.populationSize,
+        mutationRate: this.neatConfig.mutationRate
+      });
+
+      this.neat.population = this.neat.population.map(
+        m =>
+          new architect.Random(
+            this.normalisedData.length,
+            1,
+            this.neatConfig.outputSize
+          )
+      );
+    }
 
     //Split data into 60% train, 5% gap, 35% test
     const trainAmt = Math.trunc(this.normalisedData[0].length * 0.6);
@@ -147,14 +234,18 @@ const NeatTrainer = {
       array.slice(trainAmt + gapAmt)
     );
 
+    Logger.debug("Creating workers");
+
+    const workerData = {
+      data: this.data,
+      trainData: this.trainData,
+      testData: this.testData,
+      traderConfig
+    };
+
     this.workers = this.workers.map(() => {
       const newWorker = new Worker("./src/tradeWorker/index.js", {
-        workerData: {
-          data: this.data,
-          trainData: this.trainData,
-          testData: this.testData,
-          traderConfig
-        }
+        workerData: workerData
       });
 
       newWorker.on("exit", code => {
@@ -165,11 +256,23 @@ const NeatTrainer = {
 
       return newWorker;
     });
+    /*    function dubax(data) {
+      let t = new SharedArrayBuffer(data.length)
+      for( let i=0; i<data.length; i++) {
+        t[i] = data[i]
+      }
+      return t
+    }
+    trainData = this.trainData.map( e=>new Float32Array(e) )
+    testData = this.testData.map( e=>new Float32Array(e) )
+
+    this.trainData = trainData
+    this.testData = testData*/
 
     while (true) {
       await this.train();
       this.breed();
-      this.generations++;
+      this.generation++;
     }
   }
 };
