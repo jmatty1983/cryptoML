@@ -93,7 +93,10 @@ const NeatTrainer = {
         this.workers[i].postMessage({ port: port1 }, [port1]);
         port2.postMessage(genomes);
 
-        port2.on("message", resolve);
+        port2.on("message", data => {
+          resolve(data);
+          port2.close();
+        });
         port2.on("error", err => {
           Logger.error(`Worker thread error ${err}`);
           reject(err);
