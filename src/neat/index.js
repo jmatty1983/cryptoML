@@ -34,6 +34,10 @@ const NeatTrainer = {
     this.pair = pair;
     this.type = type;
     this.length = length;
+    this.workers = Array(
+      parseInt(process.env.THREADS) || os.cpus().length
+    ).fill(null);
+    this.workers.pop();
     this.data = this.dataManager.checkDataExists(pair, type, length)
       ? this.dataManager.loadData(pair, type, length, indicatorConfig)
       : [];
@@ -55,11 +59,9 @@ const NeatTrainer = {
   breed: function() {
     this.neat.sort();
     Logger.debug(
-      this.neat.population[0].score +
-        " " +
-        this.neat.population[0].stats.buys +
-        " " +
-        this.neat.population[0].stats.sells
+      `Generation: ${this.generations} - ${this.neat.population[0].score} ${
+        this.neat.population[0].stats.buys
+      } ${this.neat.population[0].stats.sells}`
     );
     this.neat.population = new Array(this.neat.popsize)
       .fill(null)
@@ -74,36 +76,24 @@ const NeatTrainer = {
 
   train: async function() {
     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
-    const threads = process.env.THREADS || os.cpus().length;
     this.neat.population.forEach((genome, i) => (genome.id = i));
     const chunkedPop = ArrayUtils.chunk(
       this.neat.population,
-      Math.trunc(this.neat.population.length / threads)
+      Math.trunc(this.neat.population.length / this.workers.length)
     );
 
-    const work = chunkedPop.map(chunk => {
-      const genomes = chunk.map(genome => ({
-        genome: genome.toJSON(),
-        id: genome.id
-      }));
+    const work = chunkedPop.map((chunk, i) => {
       return new Promise((resolve, reject) => {
-        const worker = new Worker("./src/tradeWorker/index.js", {
-          workerData: {
-            data: this.data,
-            trainData: this.trainData,
-            testData: this.testData,
-            genomes,
-            traderConfig
-          }
-        });
+        const genomes = chunk.map(genome => ({
+          genome: genome.toJSON(),
+          id: genome.id
+        }));
+        this.workers[i].postMessage(genomes);
 
-        worker.on("message", resolve);
-        worker.on("error", reject);
-
-        worker.on("exit", code => {
-          if (code !== 0) {
-            reject(new Error(`Worker stopped with exit code ${code}`));
-          }
+        this.workers[i].on("message", resolve);
+        this.workers[i].on("error", err => {
+          Logger.error(`Worker thread error ${err}`);
+          reject(err);
         });
       });
     });
@@ -150,6 +140,25 @@ const NeatTrainer = {
     this.testData = this.normalisedData.map(array =>
       array.slice(trainAmt + gapAmt)
     );
+
+    this.workers = this.workers.map(() => {
+      const newWorker = new Worker("./src/tradeWorker/index.js", {
+        workerData: {
+          data: this.data,
+          trainData: this.trainData,
+          testData: this.testData,
+          traderConfig
+        }
+      });
+
+      newWorker.on("exit", code => {
+        if (code !== 0) {
+          throw new Error(`Worker stopped with exit code ${code}`);
+        }
+      });
+
+      return newWorker;
+    });
 
     while (true) {
       await this.train();
