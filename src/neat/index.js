@@ -1,9 +1,9 @@
 const fs = require("fs");
 const { Neat, methods, architect } = require("neataptic");
 const os = require("os");
-const path = require("path");
 const { Worker, MessageChannel } = require("worker_threads");
 
+const { percentageChangeLog2 } = require("./normFuncs").percentChange;
 const ArrayUtils = require("../lib/array");
 const {
   traderConfig,
@@ -134,10 +134,8 @@ const NeatTrainer = {
 
   start: async function() {
     Logger.info("Starting genome search");
-    this.normalisedPoints = this.data.map(this.dataManager.getNormalisedPoints);
-    this.normalisedData = this.data.map((array, index) =>
-      this.dataManager.normaliseArray(array, this.normalisedPoints[index])
-    );
+
+    this.normalisedData = this.data.map(array => percentageChangeLog2(array));
 
     //Split data into 60% train, 5% gap, 35% test
     const trainAmt = Math.trunc(this.normalisedData[0].length * 0.6);

@@ -19,13 +19,14 @@ const Chart = props => {
 
   const candleData = data
     .map(candle => [
-      new Date(candle.startTime),
+      candle.id,
       candle.low,
       candle.open,
       candle.close,
-      candle.high
+      candle.high,
+      candle.startTime
     ])
-    .slice(0, 1000);
+    .slice(0, 100);
 
   google.charts.load("current", { packages: ["corechart"] });
   google.charts.setOnLoadCallback(drawChart);
@@ -42,8 +43,7 @@ const Chart = props => {
       explorer: {
         actions: ["dragToZoom", "rightClickToReset"],
         axis: "horizontal",
-        keepInBounds: true,
-        maxZoomIn: 20.0
+        keepInBounds: true
       }
     };
 
