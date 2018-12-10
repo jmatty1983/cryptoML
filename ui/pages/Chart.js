@@ -60,7 +60,7 @@ const Chart = props => {
       containerId: "slider_div",
       options: {
         // Filter by the date axis which is index 0 in this case.
-        filterColumnIndex: 3,
+        filterColumnIndex: 0,
         ui: {
           chartType: "HistogramChart",
           chartOptions: {
