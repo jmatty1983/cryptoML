@@ -19,7 +19,9 @@ const Chart = props => {
   }, []);
 
   //this won't be quite right but just want to see if i can get it drawn
-  const emaData = ema(9, [[], [], [], [data.map(({ close }) => close)]]);
+  const closes = data.map(({ close }) => close);
+  const emaData200 = ema(200, [[], [], [], closes]);
+  const emaData50 = ema(50, [[], [], [], closes]);
   const candleData = data
     .map(({ id, low, open, close, high, volume }, index) => [
       id,
@@ -27,7 +29,8 @@ const Chart = props => {
       open,
       close,
       high,
-      emaData[0][index],
+      emaData200[index],
+      emaData50[index],
       volume
     ])
     .slice(0, 5000);
@@ -114,7 +117,8 @@ const Chart = props => {
         series: {
           0: { type: "candlesticks " },
           1: { type: "line" },
-          2: { type: "none" }
+          2: { type: "line" },
+          3: { type: "none" }
         },
         backgroundColor: "#F7FBF1"
       }
