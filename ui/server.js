@@ -22,6 +22,7 @@ app.use(
 );
 app.use(require("webpack-hot-middleware")(compiler));
 app.use(express.static(path.join(__dirname, "./dist")));
+
 app.get("/chart/json/:table", (req, res) => {
   const dataManager = Object.create(DataManager);
   dataManager.init(exchange, dataDir, dbExt);
@@ -31,6 +32,9 @@ app.get("/chart/json/:table", (req, res) => {
   res.setHeader("Content-Type", "application/json");
   res.json(candles);
 });
+
+//none of this is necessary
+//=======
 app.get("/json/:coin/:asset/:type/:length", (req, res) => {
   //let table = "BCHSV/USDT"
   //let pair = 'BCHSV/USDT';
@@ -49,6 +53,7 @@ app.get("/json/:coin/:asset/:type/:length", (req, res) => {
   res.setHeader("Content-Type", "application/json");
   res.json(data);
 });
+//=======
 
 app.get("*", (req, res) =>
   res.sendFile(path.resolve(__dirname, "./dist/index.html"))

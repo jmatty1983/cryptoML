@@ -17,45 +17,50 @@ const Chart = props => {
     fetchData(table);
   }, []);
 
-  const candleData = data
-    .map(candle => [
-      candle.id,
-      candle.low,
-      candle.open,
-      candle.close,
-      candle.high
-    ])
-    .slice(0, 5000);
+  const initData = {
+    candleData: [],
+    volumeData: []
+  };
 
-  const volumeData = data
-    .map(candle => [candle.id, candle.volume])
-    .slice(0, 5000);
+  let { candleData, volumeData } = !data.length
+    ? initData
+    : data.reduce((pieces, { id, low, open, close, high, volume }) => {
+        pieces.candleData.push([id, low, open, close, high]);
+        pieces.volumeData.push([id, volume]);
+        return pieces;
+      }, initData);
 
-  google.charts.load("current", {
-    packages: ["corechart", "table", "gauge", "controls"]
-  });
-  google.charts.setOnLoadCallback(drawDashboard);
+  //slicing data so it's workable for now ... need a way to paginate or something
+  candleData = candleData.slice(0, 1000);
+  volumeData = volumeData.slice(0, 1000);
 
-  function drawDashboard() {
+  const drawDashboard = () => {
     if (!document.getElementById("dashboard_div")) {
       return;
     }
+
     //PROCESS ARRAY DATA
-    var data = google.visualization.arrayToDataTable(candleData, true);
-    var volumedata = google.visualization.arrayToDataTable(volumeData, true);
+    const candleTableData = google.visualization.arrayToDataTable(
+      candleData,
+      true
+    );
+    const volumeTableData = google.visualization.arrayToDataTable(
+      volumeData,
+      true
+    );
 
     //CREATE DASHBOARD INSTANCE
-    var dashboard = new google.visualization.Dashboard(
+    const dashboard = new google.visualization.Dashboard(
       document.getElementById("dashboard_div")
     );
 
     //CREATE CHART RANGE FILTER SLIDER
-    var control = new google.visualization.ControlWrapper({
+    const control = new google.visualization.ControlWrapper({
       controlType: "ChartRangeFilter",
       containerId: "slider_div",
       options: {
         // Filter by the date axis which is index 0 in this case.
-        filterColumnIndex: 0,
+        filterColumnIndex: 3,
         ui: {
           chartType: "HistogramChart",
           chartOptions: {
@@ -101,7 +106,7 @@ const Chart = props => {
         }*/
 
     //CHART WRAPPER INSTANCE
-    var chart = new google.visualization.ChartWrapper({
+    const chart = new google.visualization.ChartWrapper({
       chartType: "CandlestickChart",
       containerId: "chart_div",
       options: {
@@ -120,7 +125,7 @@ const Chart = props => {
         backgroundColor: "#F7FBF1"
       }
     });
-    var options = {
+    const options = {
       hAxis: {
         title: "Time"
       },
@@ -129,19 +134,24 @@ const Chart = props => {
       }
     };
 
-    var table = new google.visualization.Table(
+    const table = new google.visualization.Table(
       document.getElementById("table_div")
     );
-    var volume = new google.visualization.LineChart(
+    const volume = new google.visualization.LineChart(
       document.getElementById("volume_div")
     );
 
     dashboard.bind(control, chart);
-    dashboard.draw(data);
+    dashboard.draw(candleTableData);
     //table.draw(data, {showRowNumber: false, width: '90%', height: '100%'});
     //volume.draw(volumedata, options)
     //chart.draw(data, options);
-  }
+  };
+
+  google.charts.load("current", {
+    packages: ["corechart", "table", "gauge", "controls"]
+  });
+  google.charts.setOnLoadCallback(drawDashboard);
 
   const page = (
     <>
