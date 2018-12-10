@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { ema } from "../../src/dataManager/indicators";
 
 const Chart = props => {
   const table = props.match.params.table;
@@ -17,17 +18,19 @@ const Chart = props => {
     fetchData(table);
   }, []);
 
-  let candleData = data.map(({ id, low, open, close, high, volume }) => [
-    id,
-    low,
-    open,
-    close,
-    high,
-    volume
-  ]);
-
-  //slicing data so it's workable for now ... need a way to paginate or something
-  candleData = candleData.slice(0, 10000);
+  //this won't be quite right but just want to see if i can get it drawn
+  const emaData = ema(9, [[], [], [], [data.map(({ close }) => close)]]);
+  const candleData = data
+    .map(({ id, low, open, close, high, volume }, index) => [
+      id,
+      low,
+      open,
+      close,
+      high,
+      emaData[0][index],
+      volume
+    ])
+    .slice(0, 5000);
 
   const drawDashboard = () => {
     if (!document.getElementById("dashboard_div")) {
@@ -110,7 +113,8 @@ const Chart = props => {
         seriesType: "candlesticks",
         series: {
           0: { type: "candlesticks " },
-          1: { type: "none" }
+          1: { type: "line" },
+          2: { type: "none" }
         },
         backgroundColor: "#F7FBF1"
       }
