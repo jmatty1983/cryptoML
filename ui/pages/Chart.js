@@ -17,22 +17,17 @@ const Chart = props => {
     fetchData(table);
   }, []);
 
-  const initData = {
-    candleData: [],
-    volumeData: []
-  };
-
-  let { candleData, volumeData } = !data.length
-    ? initData
-    : data.reduce((pieces, { id, low, open, close, high, volume }) => {
-        pieces.candleData.push([id, low, open, close, high]);
-        pieces.volumeData.push([id, volume]);
-        return pieces;
-      }, initData);
+  let candleData = data.map(({ id, low, open, close, high, volume }) => [
+    id,
+    low,
+    open,
+    close,
+    high,
+    volume
+  ]);
 
   //slicing data so it's workable for now ... need a way to paginate or something
-  candleData = candleData.slice(0, 1000);
-  volumeData = volumeData.slice(0, 1000);
+  candleData = candleData.slice(0, 10000);
 
   const drawDashboard = () => {
     if (!document.getElementById("dashboard_div")) {
@@ -44,42 +39,11 @@ const Chart = props => {
       candleData,
       true
     );
-    const volumeTableData = google.visualization.arrayToDataTable(
-      volumeData,
-      true
-    );
 
     //CREATE DASHBOARD INSTANCE
     const dashboard = new google.visualization.Dashboard(
       document.getElementById("dashboard_div")
     );
-
-    //CREATE CHART RANGE FILTER SLIDER
-    const control = new google.visualization.ControlWrapper({
-      controlType: "ChartRangeFilter",
-      containerId: "slider_div",
-      options: {
-        // Filter by the date axis which is index 0 in this case.
-        filterColumnIndex: 0,
-        ui: {
-          chartType: "HistogramChart",
-          chartOptions: {
-            colors: ["#c6c4be"],
-            chartArea: { width: "70%", height: "20%" },
-            hAxis: { baselineColor: "#291A21" }
-          },
-          // Display a single series that shows the closing value of the stock.
-          // Thus, this view has two columns: the date (axis) and the stock value (line series).
-          chartView: {
-            columns: [0, 3]
-          },
-          // 1 day in milliseconds = 24 * 60 * 60 * 1000 = 86,400,000
-          minRangeSize: 100
-        }
-      },
-      // Initial range: 2012-02-09 to 2012-03-20.
-      state: { range: { start: 0, end: 500 } }
-    });
 
     //OPTIONS I CAN PASTE IN WHEN I GET THE CHART RENDERING.
     /*
@@ -105,12 +69,33 @@ const Chart = props => {
 
         }*/
 
-    //CHART WRAPPER INSTANCE
+    //CREATE CHART RANGE FILTER SLIDER
+    const control = new google.visualization.ControlWrapper({
+      controlType: "ChartRangeFilter",
+      containerId: "slider_div",
+      options: {
+        // Filter by the date axis which is index 0 in this case.
+        filterColumnIndex: 0,
+        ui: {
+          chartType: "HistogramChart",
+          chartOptions: {
+            colors: ["#c6c4be"],
+            chartArea: { width: "70%", height: "20%" },
+            hAxis: { baselineColor: "#291A21" }
+          },
+          chartView: {
+            columns: [0, 3]
+          },
+          minRangeSize: 100
+        }
+      },
+      state: { range: { start: 0, end: 500 } }
+    });
+
     const chart = new google.visualization.ChartWrapper({
       chartType: "CandlestickChart",
       containerId: "chart_div",
       options: {
-        // Use the same chart area width as the control for axis alignment.
         height: 500,
         width: "90%",
         chartArea: { height: "90%", width: "70%" },
@@ -122,30 +107,31 @@ const Chart = props => {
           risingColor: { fill: "#38CE5F", stroke: "#38CE5F", strokeWidth: 0 },
           fallingColor: { fill: "#FF5B45", stroke: "#FF5B45", strokeWidth: 0 }
         },
+        seriesType: "candlesticks",
+        series: {
+          0: { type: "candlesticks " },
+          1: { type: "none" }
+        },
         backgroundColor: "#F7FBF1"
       }
     });
-    const options = {
-      hAxis: {
-        title: "Time"
-      },
-      vAxis: {
-        title: "Volume"
+
+    const volumeChart = new google.visualization.ChartWrapper({
+      chartType: "LineChart",
+      containerId: "volume_div",
+      options: {
+        height: 200,
+        width: "90%",
+        chartArea: { height: "90%", width: "70%" },
+        hAxis: { slantedText: false },
+        legend: { position: "none" },
+        colors: ["#c6c4be"],
+        backgroundColor: "#F7FBF1"
       }
-    };
+    });
 
-    const table = new google.visualization.Table(
-      document.getElementById("table_div")
-    );
-    const volume = new google.visualization.LineChart(
-      document.getElementById("volume_div")
-    );
-
-    dashboard.bind(control, chart);
+    dashboard.bind(control, [chart, volumeChart]);
     dashboard.draw(candleTableData);
-    //table.draw(data, {showRowNumber: false, width: '90%', height: '100%'});
-    //volume.draw(volumedata, options)
-    //chart.draw(data, options);
   };
 
   google.charts.load("current", {
