@@ -30,6 +30,7 @@
     "@babel/core": "^7.2.0",
     "@babel/preset-env": "^7.2.0",
     "@babel/preset-react": "^7.0.0",
+    "GBOS-js": "git://github.com/lpn/GBOS-js.git",
     "babel-loader": "^8.0.4",
     "better-sqlite3": "^5.0.1",
     "ccxt": "^1.17.458",

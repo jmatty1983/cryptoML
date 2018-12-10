@@ -4,6 +4,9 @@ const os = require("os");
 const path = require("path");
 const { Worker, MessageChannel } = require("worker_threads");
 
+const GBOS = require("GBOS-js");
+const noveltySearch = require("./noveltySearch");
+
 const ArrayUtils = require("../lib/array");
 const {
   traderConfig,
@@ -61,7 +64,7 @@ const NeatTrainer = {
     this.neatConfig = neatConfig;
     this.indicatorConfig = indicatorConfig;
     this.archive = [];
-    this.generation = 1;
+    this.generation = 0;
     this.highScore = -Infinity;
     this.pair = pair;
     this.type = type;
@@ -90,54 +93,125 @@ const NeatTrainer = {
 
   breed: function() {
     this.neat.sort();
-    const R =
-      this.neat.population[0].stats.avgWin /
-      -this.neat.population[0].stats.avgLoss;
-    Logger.debug(
-      `Gen: ${this.generations} - ${this.neat.population[0].score} ${
-        this.neat.population[0].stats.buys
-      } ${this.neat.population[0].stats.sells} R:${R}`
-      /*        this.generation +
-        " " +
-        this.neat.population[0].score +
-        " " +
-        this.neat.population[0].stats.buys +
-        " " +
-        this.neat.population[0].stats.sells +
-        " " +
-        this.neat.population[0].stats.avgPosAdd +
-        " " +
-        this.neat.population[0].stats.avgPosRem +
-        " " +
-        this.neat.population[0].stats.ticksWon / (this.neat.population[0].stats.ticksWon+this.neat.population[0].stats.ticksLost) +
-        " W:" +
-        this.neat.population[0].stats.avgWin +
-        " L:" +
-        this.neat.population[0].stats.avgLoss +
-        " R:" +
-        this.neat.population[0].stats.avgWin / -this.neat.population[0].stats.avgLoss
-  */
-    );
-    this.neat.population = new Array(this.neat.popsize)
-      .fill(null)
-      .map(() => this.neat.getOffspring());
+    {
+      Logger.debug("");
+      this.neat.population
+        .filter((g, index) => index <= 6)
+        .forEach(g => {
+          const PL = 100 * g.stats.profit;
+          Logger.debug(
+            `G${this.generation} - ${PL} ${g.stats.novelty} ${g.stats.buys} ${
+              g.stats.sells
+            } ${g.stats.avgPosAdd} ${g.stats.avgPosRem}`
+          );
+        });
+    }
+
+    let dupes = 0;
+    this.neat.population = new Array(this.neat.popsize).fill(null).map(() => {
+      let offspring = null;
+      dupes--;
+      do {
+        offspring = this.neat.getOffspring();
+        dupes++;
+      } while (
+        this.parentPopulation.some(
+          genome =>
+            JSON.stringify(genome.toJSON()) ===
+            JSON.stringify(offspring.toJSON())
+        )
+      );
+      return offspring;
+    });
 
     this.neat.mutate();
+
+    /*    this.neat.population = this.neat.population
+      .filter( (genome,index) => this.neat.population
+        .some( (genome2,index2) => {
+          return !(index2>index && JSON.stringify(genome.toJSON()) === JSON.stringify(genome2.toJSON()))
+        })
+      )*/
+
+    if (dupes) {
+      Logger.debug(
+        `${dupes} discarded & rebred. Final population size ${
+          this.neat.population.length
+        }`
+      );
+    }
   },
 
-  getFitness: function({ currency, startCurrency, buys, sells }) {
-    return (currency / startCurrency) * 100; //* (buys<2||sells<2?0:1);
+  getFitness: function({ profit, buys, sells }) {
+    return (profit - 1) * 100 * Math.atan(buys * sells);
   },
+
+  //
+
+  processStatistics: function(results) {
+    results.forEach(({ trainStats, testStats, id }) => {
+      this.neat.population[id].stats = trainStats;
+      this.neat.population[
+        id
+      ].noveltySearchObjectives = this.neatConfig.noveltySearchObjectives.map(
+        objective => trainStats[objective]
+      );
+    });
+
+    const nsObj = this.neat.population.map(
+      genome => genome.noveltySearchObjectives
+    );
+
+    if (this.noveltySearchArchive === undefined) {
+      this.noveltySearchArchive = [];
+    }
+
+    const novelties = noveltySearch(nsObj, this.noveltySearchArchive, 1.44);
+
+    for (let i = 0; i < 4; i++) {
+      this.noveltySearchArchive.push(
+        nsObj[Math.floor(Math.random() * nsObj.length)]
+      );
+    }
+
+    this.neat.population.forEach((genome, index) => {
+      genome.stats.novelty = novelties[index];
+      genome.sortingObjectives = this.neatConfig.sortingObjectives.map(
+        objective => -results[index].trainStats[objective]
+      );
+    });
+
+    if (this.parentPopulation === undefined) {
+      this.parentPopulation = [];
+    }
+    this.neat.population = [...this.neat.population, ...this.parentPopulation];
+
+    // Logger.debug(this.neat.population.length)
+
+    const toSort = this.neat.population.map(genome => genome.sortingObjectives);
+    GBOS(toSort).forEach((rank, index) => {
+      this.neat.population[index].score = -rank;
+    });
+
+    this.neat.sort();
+
+    this.neat.population.length = this.neatConfig.populationSize;
+    this.parentPopulation = this.neat.population;
+  },
+
+  //
 
   train: async function() {
     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
-    this.neat.population.forEach((genome, i) => (genome.id = i));
+    this.neat.population.forEach((genome, i) => {
+      genome.id = i;
+      genome.clear();
+    });
+
     const chunkedPop = ArrayUtils.chunk(
       this.neat.population,
       Math.ceil(this.neat.population.length / this.workers.length)
     );
-
-    //    console.log(this.workers)
 
     const work = chunkedPop.map((chunk, i) => {
       return new Promise((resolve, reject) => {
@@ -162,13 +236,14 @@ const NeatTrainer = {
     });
 
     let results = ArrayUtils.flatten(await Promise.all(work));
+    this.processStatistics(results);
     results.forEach(({ trainStats, testStats, id }) => {
-      this.neat.population[id].stats = trainStats;
-      this.neat.population[id].score = this.getFitness(trainStats);
-      const testScore = this.getFitness(testStats);
-      if (testScore > this.highScore) {
+      const testScore = testStats.profit;
+      if (testScore > this.highScore && trainStats.profit > 1) {
         const data = {
           genome: this.neat.population[id].toJSON(),
+          trainStats,
+          testStats,
           traderConfig,
           indicatorConfig,
           neatConfig
@@ -177,7 +252,7 @@ const NeatTrainer = {
         const safePairName = this.pair.replace(/[^a-z0-9]/gi, "");
         const filename = `${safePairName}_${this.type}_${this.length}_gen_${
           this.generation
-        }_${testScore}`;
+        }_id_${id}_${testStats.profit * 100}`;
         const dir = `${__dirname}/../../genomes/${safePairName}`;
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir);
@@ -196,13 +271,29 @@ const NeatTrainer = {
     // this.dataManager.normaliseArray(array, this.normalisedPoints[index])
     // );
 
+    // Candle differential / ratio
     this.normalisedData = this.data
       .filter((_, index) => index === 2 || index === 3 || index === 4)
       .map((array, index) => {
         return array.map((_, i) => {
-          return i > 0 ? Math.log2(array[i] / array[i - 1]) : 0;
+          return i > 0 ? array[i] / array[i - 1] : 1;
         });
       });
+    // diff of diff
+    this.normalisedData2 = this.normalisedData.map((array, index) => {
+      return array.map((_, i) => {
+        return i > 0 ? array[i] / array[i - 1] : 1;
+      });
+    });
+
+    // Log2 of both
+    this.normalisedData = [...this.normalisedData, ...this.normalisedData2];
+    this.normalisedData = this.normalisedData.map(array =>
+      array.map(v => Math.log2(v))
+    );
+
+    // this.normalisedData
+    // .forEach( array => Logger.debug( array.reduce( (acc,val) => acc+val,0) / array.length))
 
     if (this.normalisedData.length) {
       Logger.info(
@@ -213,7 +304,9 @@ const NeatTrainer = {
       this.neat = new Neat(this.normalisedData.length, 1, null, {
         mutation: methods.mutation.ALL,
         popsize: this.neatConfig.populationSize,
-        mutationRate: this.neatConfig.mutationRate
+        mutationRate: this.neatConfig.mutationRate,
+        elitism: this.neatConfig.elitism,
+        selection: methods.selection.TOURNAMENT
       });
 
       this.neat.population = this.neat.population.map(
@@ -234,8 +327,6 @@ const NeatTrainer = {
       array.slice(trainAmt + gapAmt)
     );
 
-    Logger.debug("Creating workers");
-
     const workerData = {
       data: this.data,
       trainData: this.trainData,
@@ -245,7 +336,7 @@ const NeatTrainer = {
 
     this.workers = this.workers.map(() => {
       const newWorker = new Worker("./src/tradeWorker/index.js", {
-        workerData: workerData
+        workerData
       });
 
       newWorker.on("exit", code => {
@@ -256,23 +347,11 @@ const NeatTrainer = {
 
       return newWorker;
     });
-    /*    function dubax(data) {
-      let t = new SharedArrayBuffer(data.length)
-      for( let i=0; i<data.length; i++) {
-        t[i] = data[i]
-      }
-      return t
-    }
-    trainData = this.trainData.map( e=>new Float32Array(e) )
-    testData = this.testData.map( e=>new Float32Array(e) )
-
-    this.trainData = trainData
-    this.testData = testData*/
 
     while (true) {
+      this.generation++;
       await this.train();
       this.breed();
-      this.generation++;
     }
   }
 };

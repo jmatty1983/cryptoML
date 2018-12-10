@@ -34,8 +34,8 @@ const TradeManager = {
     this.posTrigger = false;
 
     this.prevWorth = this.startCurrency;
-    this.ticksLost = 0;
-    this.ticksWon = 0;
+    this.tradesLost = 0;
+    this.tradesWon = 0;
     this.avgWin = 0;
     this.avgLoss = 0;
 
@@ -44,8 +44,9 @@ const TradeManager = {
     this.avgPosAdd = 0;
     this.avgPosRem = 0;
 
-    this.totalTime = 0;
     this.exposure = 0;
+
+    this.minQuantity = 0.1;
 
     //More notes for future me. It may be worth experimenting with inputting current position
     //information for the model.
@@ -64,25 +65,54 @@ const TradeManager = {
         positionSize = -1;
       }
 
-      const changeAmt = positionSize;
+      let changeAmt = positionSize;
 
       if (changeAmt > 0 && this.currency > 0) {
         const change = this.currency * changeAmt;
-        this.currency -= change;
 
-        this.avgPosAdd += changeAmt;
+        const quantity =
+          (change * (1 - (this.fees + this.slippage))) / candle[1];
+        if (quantity >= this.minQuantity) {
+          const f = quantity / this.minQuantity;
+          this.currency -= change;
+          this.avgPosAdd += changeAmt;
 
-        this.asset += (change * (1 - (this.fees + this.slippage))) / candle[1];
-        this.buys++;
+          this.asset += quantity;
+          this.buys++;
+
+          this.currentWorth = this.getValue(candle[1]);
+        }
       } else if (changeAmt < 0 && this.asset > 0) {
-        const change = this.asset * -changeAmt;
+        changeAmt = -changeAmt;
+        let change = this.asset * changeAmt;
         this.asset -= change;
 
-        this.avgPosRem -= changeAmt;
+        if (this.asset * candle[1] < this.currency * 0.05) {
+          change += this.asset;
+          this.asset = 0;
+          changeAmt = 1;
+        }
+
+        this.avgPosRem += changeAmt;
 
         const sellVal = change * (1 - (this.fees + this.slippage)) * candle[1];
         this.currency += sellVal;
+
+        const worth = this.getValue(candle[1]);
+
         this.sells++;
+
+        const deltaWorth = worth - this.currentWorth;
+
+        if (deltaWorth >= 0) {
+          this.avgWin += deltaWorth;
+          this.tradesWon++;
+        } else if (deltaWorth < 0) {
+          this.avgLoss += deltaWorth;
+          this.tradesLost++;
+        }
+
+        this.currentWorth = worth;
       }
 
       if (this.currency < 0 || this.asset < 0) {
@@ -95,30 +125,53 @@ const TradeManager = {
     }
   },
 
+  getValue: function(currentPrice) {
+    return (
+      this.currency +
+      this.asset * currentPrice * (1 - (this.fees + this.slippage))
+    );
+  },
+
   // doShort: function(positionSize, candle) {
   //   if (this.allowShorts) {
   //   }
   // },
 
-  handleCandle: function(candle, [signal, positionSize]) {
-    positionSize = positionSize === undefined ? 1 : positionSize;
+  handleCandle: function(candle, [buySig, buySize, sellSig, sellSize]) {
+    //    positionSize = positionSize === undefined ? 0 : positionSize;
 
+    // buySize = 0.1
+    // sellSize = 0.1
+
+    if (buySig > this.longThresh && !this.posTrigger) {
+      this.posTrigger = !this.posTrigger;
+      this.doLong(buySize, candle);
+    }
+    /*    if (buySig < -this.longThresh) {
+      this.doLong(-Math.max(0,sellSize), candle);
+    } */
+    /*    const foo = 0.1
     if (signal > this.longThresh && !this.posTrigger) {
-      //      this.posTrigger = !this.posTrigger
+      // this.posTrigger = !this.posTrigger
       this.doLong(positionSize, candle);
-    } else if (signal < -this.longThresh && !this.posTrigger) {
-      //      this.posTrigger = !this.posTrigger
+    } 
+    if (signal < -this.longThresh && !this.posTrigger) {
+      // this.posTrigger = !this.posTrigger
       this.doLong(-positionSize, candle);
     } else if (signal < this.shortThresh) {
       //this.doShort(positionSize, candle);
     } else {
       //do something? Exit all positions maybe?
-    }
-    /*  if( signal < this.longThresh && signal > -this.longThresh && this.posTrigger) {
-      this.posTrigger = !this.posTrigger
     }*/
+    if (
+      buySig < this.longThresh &&
+      buySig > -this.longThresh &&
+      this.posTrigger
+    ) {
+      this.posTrigger = !this.posTrigger;
+    }
 
-    if (!(this.tickCount & 1)) {
+    /*    if (!(this.tickCount & 1)) {
       const currentWorth =
         this.currency +
         this.asset * (1 - (this.fees + this.slippage)) * candle[1];
@@ -132,6 +185,10 @@ const TradeManager = {
         this.avgLoss += deltaWorth;
         this.ticksLost++;
       }
+    }*/
+
+    if (this.asset > 0) {
+      this.exposure++;
     }
 
     this.tickCount++;
@@ -154,19 +211,55 @@ const TradeManager = {
       this.handleCandle(candle, output);
     });
 
+    // this.doLong(-1, this.data[this.data.length - 1]);
+
+    const profit = this.getValue(this.data[this.data.length - 1][1]);
+
+    // this.tradesWon = Math.max(Number.EPSILON,this.tradesWon)
+    // this.tradesLost = Math.max(Number.EPSILON,this.tradesLost)
+
+    function safeDiv(num, denom) {
+      if (Math.abs(denom) <= Number.EPSILON) return 0;
+      return num / denom;
+    }
+
+    this.winSum = this.avgWin;
+    this.loseSum = this.avgLoss;
+    this.avgWin = safeDiv(this.avgWin, this.tradesWon);
+    this.avgLoss = safeDiv(this.avgLoss, this.tradesLost);
+
     return {
       currency: this.currency,
       startCurrency: this.startCurrency,
       asset: this.asset,
-      value: this.currency + this.asset * this.data[this.data.length - 1][1],
+      value: profit,
+
       buys: this.buys,
       sells: this.sells,
-      ticksWon: this.ticksWon,
-      ticksLost: this.ticksLost,
-      avgWin: this.avgWin / this.ticksWon,
-      avgLoss: this.avgLoss / this.ticksLost,
-      avgPosAdd: this.avgPosAdd / this.buys,
-      avgPosRem: this.avgPosRem / this.sells
+
+      buysToTimeSpanRatio: this.buys / this.tickCount,
+      sellsToTimeSpanRatio: this.sells / this.tickCount,
+
+      buysToSellsRatio: safeDiv(this.buys, this.sells),
+      winSum: this.winSum,
+      loseSum: this.loseSum,
+      avgWin: this.avgWin,
+      avgLoss: this.avgLoss,
+
+      wins: this.tradesWon,
+      losses: this.tradesLost,
+
+      avgPosAdd: this.avgPosAdd / Math.max(Number.EPSILON, this.buys),
+      avgPosRem: this.avgPosRem / Math.max(Number.EPSILON, this.sells),
+      profit: profit,
+      R: safeDiv(this.avgWin, -this.avgLoss),
+      winRate: safeDiv(this.tradesWon, this.tradesWon + this.tradesLost),
+      exposure: this.exposure / this.tickCount,
+
+      genomeNodes: this.genome.nodes.length / 10,
+      genomeConnections: this.genome.connections.length / 10,
+      genomeGates: this.genome.gates.length / 10,
+      genomeSelfConnections: this.genome.selfconns.length / 10
     };
   }
 };

@@ -1,13 +1,36 @@
 //IMPORTANT: All of these configs should be saved with the network genomes
 
 exports.neatConfig = {
-  populationSize: 128,
-  mutationRate: 0.25,
+  populationSize: 192,
+  mutationRate: 0.5,
   fitBreedAmt: 0.1,
   rndBreedAmt: 0.1,
+  elitism: 0,
   //1 - Buy Sell Only
   //2 - Buy Sell Position Size
-  outputSize: 2,
+  outputSize: 4,
+  // see what tradeManager returns
+  noveltySearchObjectives: [
+    "winRate",
+    "exposure",
+    "avgPosAdd",
+    "avgPosRem",
+    "genomeNodes",
+    "genomeConnections",
+    "genomeGates",
+    "genomeSelfConnections",
+    "buysToSellsRatio",
+    "buysToTimeSpanRatio",
+    "sellsToTimeSpanRatio"
+  ],
+  //
+  sortingObjectives: [
+    "profit",
+    // "currency",
+    "novelty",
+    "R"
+    //"avgWin",
+  ],
   //just a place holder for now. Will allow configuring which candle inputs to feed the network
   inputs: [
     {
@@ -45,11 +68,11 @@ exports.indicatorConfig = [
 
 exports.traderConfig = {
   //Threshold for network signal output to be interpreted as going long
-  longThresh: 1 / 6,
+  longThresh: 1 / 32,
   //Threshold for network signal output to be interpreted as going short
   shortThresh: 0,
   //Minimum positions size change required before placing an order
-  positionChangeThesh: 0.05,
+  positionChangeThresh: 0.05,
   //Fees and slippage used for calculating pnl
   fees: 0.001,
   slippage: 0.002,
