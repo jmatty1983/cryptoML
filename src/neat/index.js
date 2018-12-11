@@ -4,12 +4,12 @@
 const fs = require("fs");
 const { Neat, methods, architect } = require("neataptic");
 const os = require("os");
-const path = require("path");
 const { Worker, MessageChannel } = require("worker_threads");
 
 const GBOS = require("GBOS-js");
 const noveltySearch = require("./noveltySearch");
 
+const { percentageChangeLog2 } = require("./normFuncs").percentChange;
 const ArrayUtils = require("../lib/array");
 const {
   traderConfig,
@@ -289,31 +289,8 @@ const NeatTrainer = {
 
   start: async function() {
     Logger.info("Starting genome search");
-    // this.normalisedPoints = this.data.map(this.dataManager.getNormalisedPoints);
-    // this.normalisedData = this.data.map((array, index) =>
-    // this.dataManager.normaliseArray(array, this.normalisedPoints[index])
-    // );
 
-    // Candle differential / ratio
-    this.normalisedData = this.data
-      .filter((_, index) => index === 2 || index === 3 || index === 4)
-      .map((array, index) => {
-        return array.map((_, i) => {
-          return i > 0 ? array[i] / array[i - 1] : 1;
-        });
-      });
-    // diff of diff
-    /*    this.normalisedData2 = this.normalisedData.map((array, index) => {
-      return array.map((_, i) => {
-        return i > 0 ? array[i] / array[i - 1] : 1;
-      });
-    });
-*/
-    // Log2 of both
-    // this.normalisedData = [...this.normalisedData, ...this.normalisedData2];
-    this.normalisedData = this.normalisedData.map(array =>
-      array.map(v => Math.log2(v))
-    );
+    this.normalisedData = this.data.map(array => percentageChangeLog2(array));
 
     // this.normalisedData
     // .forEach( array => Logger.debug( array.reduce( (acc,val) => acc+val,0) / array.length))

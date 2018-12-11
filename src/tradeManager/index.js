@@ -15,7 +15,15 @@ const TradeManager = {
     }
   ) {
     this.genome = genome;
+
+    const [opens, highs, lows, closes, volumes] = data;
     this.data = data;
+    this.opens = opens;
+    this.highs = highs;
+    this.lows = lows;
+    this.closes = closes;
+    this.volumes = volumes;
+
     this.networkInput = networkInput;
     this.longThresh = longThresh;
     this.shortThresh = shortThresh;
@@ -57,7 +65,7 @@ const TradeManager = {
     };
   },
 
-  doLong: function(positionSize, candle) {
+  doLong: function(positionSize, [, , , close]) {
     try {
       if (positionSize > 1) {
         positionSize = 1;
@@ -182,11 +190,8 @@ const TradeManager = {
     this.tickCount++;
   },
 
-  //leaving thoughts here for future me. probably don't need the raw candle data to be
-  //in the form of an array of arrays. can leave it as an object of arrays so we can reference
-  //something like this.data.close instead of this.data[1] which is a little awkward
   runTrades: function() {
-    this.data[0].forEach((x, index) => {
+    this.opens.forEach((x, index) => {
       const candleInput = this.networkInput.reduce(
         (array, item) => [...array, item[index]],
         []
@@ -220,8 +225,7 @@ const TradeManager = {
       currency: this.currency,
       startCurrency: this.startCurrency,
       asset: this.asset,
-      value: profit,
-
+      value: this.currency + this.asset * this.closes[this.closes.length - 1],
       buys: this.buys,
       sells: this.sells,
 

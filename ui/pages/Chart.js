@@ -19,13 +19,14 @@ const Chart = props => {
 
   const candleData = data
     .map(candle => [
-      candle.startTime,
+      candle.id,
+      candle.low,
       candle.open,
       candle.close,
       candle.high,
-      candle.low
+      candle.startTime
     ])
-    .slice(0, 1000);
+    .slice(0, 100);
 
   google.charts.load("current", { packages: ["corechart"] });
   google.charts.setOnLoadCallback(drawChart);
@@ -37,7 +38,13 @@ const Chart = props => {
     var data = google.visualization.arrayToDataTable(candleData, true);
 
     var options = {
-      legend: "none"
+      legend: "none",
+      bar: { groupWidth: "95%" },
+      explorer: {
+        actions: ["dragToZoom", "rightClickToReset"],
+        axis: "horizontal",
+        keepInBounds: true
+      }
     };
 
     var chart = new google.visualization.CandlestickChart(
