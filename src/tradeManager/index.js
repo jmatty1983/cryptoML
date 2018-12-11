@@ -112,7 +112,7 @@ const TradeManager = {
           this.tradesLost++;
         }
 
-        this.currentWorth = worth;
+        // this.currentWorth = worth;
       }
 
       if (this.currency < 0 || this.asset < 0) {
@@ -137,38 +137,14 @@ const TradeManager = {
   //   }
   // },
 
-  handleCandle: function(candle, [buySig, buySize, sellSig, sellSize]) {
+  handleCandle: function(candle, [longSig, longSize, shortSig, shortSize]) {
     //    positionSize = positionSize === undefined ? 0 : positionSize;
 
     // buySize = 0.1
     // sellSize = 0.1
 
-    if (buySig > this.longThresh && !this.posTrigger) {
-      this.posTrigger = !this.posTrigger;
-      this.doLong(buySize, candle);
-    }
-    /*    if (buySig < -this.longThresh) {
-      this.doLong(-Math.max(0,sellSize), candle);
-    } */
-    /*    const foo = 0.1
-    if (signal > this.longThresh && !this.posTrigger) {
-      // this.posTrigger = !this.posTrigger
-      this.doLong(positionSize, candle);
-    } 
-    if (signal < -this.longThresh && !this.posTrigger) {
-      // this.posTrigger = !this.posTrigger
-      this.doLong(-positionSize, candle);
-    } else if (signal < this.shortThresh) {
-      //this.doShort(positionSize, candle);
-    } else {
-      //do something? Exit all positions maybe?
-    }*/
-    if (
-      buySig < this.longThresh &&
-      buySig > -this.longThresh &&
-      this.posTrigger
-    ) {
-      this.posTrigger = !this.posTrigger;
+    if (longSig > 0) {
+      this.doLong(longSize, candle);
     }
 
     /*    if (!(this.tickCount & 1)) {
@@ -240,7 +216,7 @@ const TradeManager = {
       buysToTimeSpanRatio: this.buys / this.tickCount,
       sellsToTimeSpanRatio: this.sells / this.tickCount,
 
-      buysToSellsRatio: safeDiv(this.buys, this.sells),
+      buysToTradesRatio: safeDiv(this.buys, this.buys + this.sells),
       winSum: this.winSum,
       loseSum: this.loseSum,
       avgWin: this.avgWin,
@@ -259,7 +235,14 @@ const TradeManager = {
       genomeNodes: this.genome.nodes.length / 10,
       genomeConnections: this.genome.connections.length / 10,
       genomeGates: this.genome.gates.length / 10,
-      genomeSelfConnections: this.genome.selfconns.length / 10
+      genomeSelfConnections: this.genome.selfconns.length / 10,
+
+      OK:
+        this.buys > 0 &&
+        this.sells > 0 &&
+        this.wins > 0 &&
+        this.losses > 0 &&
+        profit > 1
     };
   }
 };

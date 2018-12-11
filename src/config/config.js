@@ -1,15 +1,17 @@
 //IMPORTANT: All of these configs should be saved with the network genomes
 
 exports.neatConfig = {
-  populationSize: 192,
-  mutationRate: 0.5,
+  populationSize: 200,
+  mutationRate: 1,
+  mutationAmount: 1,
   fitBreedAmt: 0.1,
   rndBreedAmt: 0.1,
-  elitism: 0,
   //1 - Buy Sell Only
   //2 - Buy Sell Position Size
   outputSize: 4,
   // see what tradeManager returns
+  noveltySearchAddRandom: 4,
+  noveltySearchAddFittest: 0,
   noveltySearchObjectives: [
     "winRate",
     "exposure",
@@ -19,17 +21,20 @@ exports.neatConfig = {
     "genomeConnections",
     "genomeGates",
     "genomeSelfConnections",
-    "buysToSellsRatio",
+    "buysToTradesRatio",
     "buysToTimeSpanRatio",
     "sellsToTimeSpanRatio"
   ],
   //
   sortingObjectives: [
+    "OK",
     "profit",
-    // "currency",
+    "currency",
+    "R",
     "novelty",
-    "R"
-    //"avgWin",
+    "winRate",
+    "buys",
+    "sells"
   ],
   //just a place holder for now. Will allow configuring which candle inputs to feed the network
   inputs: [
