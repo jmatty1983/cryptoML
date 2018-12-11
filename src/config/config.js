@@ -9,6 +9,11 @@ exports.neatConfig = {
   //1 - Long Buy Sell & Pos
   //2 - Long+Short Buy Sell & Pos
   outputSize: 2,
+  // how do we select candidates for paper/live?
+  candidateSortingCriteria: [
+    "value"
+    // "winRate",
+  ],
   // see what tradeManager returns
   noveltySearchAddRandom: 4,
   noveltySearchAddFittest: 0,
@@ -28,7 +33,7 @@ exports.neatConfig = {
   //
   sortingObjectives: [
     "OK",
-    "profit",
+    "value",
     "currency",
     "R",
     "novelty",
@@ -62,13 +67,13 @@ exports.neatConfig = {
 };
 
 exports.indicatorConfig = [
-  {
+  /*  {
     name: "sma",
     params: [9],
     //just a place holder for now. Will allow different normalising functions to be applied
     //to different indicators
     normFunc: "log2"
-  }
+  }*/
 ];
 
 exports.traderConfig = {

@@ -9,6 +9,8 @@ const { Worker, MessageChannel } = require("worker_threads");
 const GBOS = require("GBOS-js");
 const noveltySearch = require("./noveltySearch");
 
+const phonetic = require("phonetic");
+
 const { percentageChangeLog2 } = require("./normFuncs").percentChange;
 const ArrayUtils = require("../lib/array");
 const {
@@ -99,16 +101,22 @@ const NeatTrainer = {
     this.neat.sort();
     {
       Logger.debug(`Generation ${this.generation}`);
-      this.neat.population
-        .filter((g, index) => index < 6)
+      // Logger.debug(this.candidatePopulation.length)
+      this.candidatePopulation
+        //        .sort((a,b)=>b.testStats.value-a.testStats.value)
+        .filter(g => g.testStats.value >= 1 && g.stats.value >= 1)
+        .filter((g, index) => index < 8)
         .forEach(g => {
-          const PL = 100 * g.stats.profit;
+          const PL = 100 * g.stats.value;
+          const PLt = 100 * g.testStats.value;
           Logger.debug(
-            `G${g.generation}\t- ${g.rank} ${PL} ${g.stats.novelty} ${
-              g.stats.buys
-            } ${g.stats.sells} ${g.stats.avgPosAdd} ${g.stats.avgPosRem} ${
-              g.stats.winRate
-            }`
+            `G${g.generation}\t- Train: ${PL.toFixed(2)} ${g.stats.buys} ${
+              g.stats.sells
+            } ${g.stats.winRate.toFixed(2)}\t Test: ${PLt.toFixed(2)} ${
+              g.testStats.buys
+            } ${g.testStats.sells} ${g.testStats.winRate.toFixed(2)}\t\t(${
+              g.name
+            })`
           );
         });
     }
@@ -116,10 +124,10 @@ const NeatTrainer = {
     let dupes = 0;
     this.neat.population = new Array(this.neat.popsize).fill(null).map(() => {
       let offspring = null;
-      dupes--;
+      // dupes--;
       do {
         offspring = this.neat.getOffspring();
-        dupes++;
+        // dupes++;
       } while (
         this.parentPopulation.some(
           genome =>
@@ -131,6 +139,21 @@ const NeatTrainer = {
     });
 
     this.neat.mutate();
+
+    const date = Date.now();
+    this.neat.population.forEach(
+      genome =>
+        (genome.name =
+          phonetic.generate({
+            seed: JSON.stringify(genome.toJSON()),
+            syllables: 2 + (JSON.stringify(genome.toJSON()).length % 2)
+          }) +
+          "-" +
+          phonetic.generate({
+            seed: date + JSON.stringify(this.generation),
+            syllables: 2 + (this.generation % 2)
+          }))
+    );
 
     /*    this.neat.population = this.neat.population
       .filter( (genome,index) => this.neat.population
@@ -155,11 +178,17 @@ const NeatTrainer = {
   processStatistics: function(results) {
     results.forEach(({ trainStats, testStats, id }) => {
       this.neat.population[id].stats = trainStats;
+      this.neat.population[id].testStats = testStats;
       this.neat.population[
         id
       ].noveltySearchObjectives = this.neatConfig.noveltySearchObjectives.map(
         objective => trainStats[objective]
       );
+      this.neat.population[
+        id
+      ].candidateSortingObjectives = this.neatConfig.candidateSortingCriteria
+        .map(objective => [-testStats[objective] - trainStats[objective]])
+        .reduce((acc, val) => [...acc, ...val], []);
     });
 
     if (this.noveltySearchArchive === undefined) {
@@ -169,6 +198,36 @@ const NeatTrainer = {
     if (this.parentPopulation === undefined) {
       this.parentPopulation = [];
     }
+
+    if (this.candidatePopulation === undefined) {
+      this.candidatePopulation = [];
+    }
+
+    this.candidatePopulation = [
+      ...this.candidatePopulation,
+      ...this.neat.population.filter(
+        genome1 =>
+          !this.candidatePopulation.some(
+            genome2 =>
+              JSON.stringify(genome1.toJSON()) ===
+              JSON.stringify(genome2.toJSON())
+          )
+      )
+    ];
+
+    const candidatesToSort = this.candidatePopulation.map(
+      genome => genome.candidateSortingObjectives
+    );
+
+    // console.log(candidatesToSort)
+
+    GBOS(candidatesToSort).forEach((rank, index) => {
+      this.candidatePopulation[index].rank = rank;
+    });
+
+    this.candidatePopulation.sort((a, b) => a.rank - b.rank);
+    this.candidatePopulation.length = this.neatConfig.populationSize;
+
     this.neat.population = [...this.neat.population, ...this.parentPopulation];
 
     const nsObj = this.neat.population.map(
@@ -211,13 +270,15 @@ const NeatTrainer = {
         ]
       );
       //      console.log(this.neat.population[i].stats.novelty)//this.neat.population[i].noveltySearchObjectives)
-      this.noveltySearchArchive
+      /*      this.noveltySearchArchive
         .push
-        // this.neat.population[i]
-        ();
+          this.neat.population[i]
+        ();*/
     }
     this.neat.population.length = this.neatConfig.populationSize;
     this.parentPopulation = this.neat.population;
+
+    //    const candidateObjectives = this.parentPopulation.map
   },
 
   //
@@ -261,8 +322,8 @@ const NeatTrainer = {
     this.processStatistics(results);
 
     results.forEach(({ trainStats, testStats, id }) => {
-      const testScore = testStats.profit;
-      if (testScore > this.highScore && trainStats.profit > 1) {
+      const testScore = testStats.value;
+      if (testScore > this.highScore && trainStats.value > 1) {
         const data = {
           genome: this.neat.population[id].toJSON(),
           trainStats,
@@ -275,7 +336,7 @@ const NeatTrainer = {
         const safePairName = this.pair.replace(/[^a-z0-9]/gi, "");
         const filename = `${safePairName}_${this.type}_${this.length}_gen_${
           this.generation
-        }_id_${id}_${testStats.profit * 100}`;
+        }_id_${id}_${testStats.value * 100}`;
         const dir = `${__dirname}/../../genomes/${safePairName}`;
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir);
@@ -290,14 +351,18 @@ const NeatTrainer = {
   start: async function() {
     Logger.info("Starting genome search");
 
-    this.normalisedData = this.data.map(array => percentageChangeLog2(array));
+    this.normalisedData = this.data
+      // .filter((_,index) => (index===1||index===2||index===4))
+      .map(percentageChangeLog2);
+
+    // this.normalisedData = this.data.map(array => percentageChangeLog2(array));
 
     // this.normalisedData
     // .forEach( array => Logger.debug( array.reduce( (acc,val) => acc+val,0) / array.length))
 
     if (this.normalisedData.length) {
       Logger.info(
-        `Creating new population. I/O size: ${this.normalisedData.length}/${
+        `Creating a new population. I/O size: ${this.normalisedData.length}/${
           this.neatConfig.outputSize
         }`
       );
@@ -321,7 +386,7 @@ const NeatTrainer = {
     }
 
     //Split data into 60% train, 5% gap, 35% test
-    const trainAmt = Math.trunc(this.normalisedData[0].length * 0.75);
+    const trainAmt = Math.trunc(this.normalisedData[0].length * 0.7);
     const gapAmt = Math.trunc(this.normalisedData[0].length * 0.05);
     this.trainData = this.normalisedData.map(array => array.slice(0, trainAmt));
     this.testData = this.normalisedData.map(array =>

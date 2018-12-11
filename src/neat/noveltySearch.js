@@ -21,6 +21,10 @@ function minkowskiDistance(a, b, p = 2) {
 // opts.p - minkowski distance power
 
 function noveltySearch(objectives, archive = [], opts = {}) {
+  assert(
+    ![...objectives, ...archive].some(array => array.some(item => isNaN(item)))
+  );
+
   const kNN = opts.kNN || 15;
   const p = opts.p || 2;
 
