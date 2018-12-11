@@ -1,3 +1,6 @@
+// TODO: Maintain a population of live/paper trading candidates
+// TODO: Normalisation of Novelty Search objectives
+
 const fs = require("fs");
 const { Neat, methods, architect } = require("neataptic");
 const os = require("os");
@@ -189,8 +192,6 @@ const NeatTrainer = {
 
     //    this.neat.population.sort( (a,b) => b.stats.novelty - a.stats.novelty )
 
-    // for now, just add a few random genomes into the NS archive
-
     // Logger.debug(this.noveltySearchArchive.length)
 
     // Logger.debug(this.neat.population.length)
@@ -258,8 +259,6 @@ const NeatTrainer = {
 
     let results = ArrayUtils.flatten(await Promise.all(work));
     this.processStatistics(results);
-
-    // TODO: Maintain a population of live/paper trading candidates
 
     results.forEach(({ trainStats, testStats, id }) => {
       const testScore = testStats.profit;

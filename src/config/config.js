@@ -6,9 +6,9 @@ exports.neatConfig = {
   mutationAmount: 1,
   fitBreedAmt: 0.1,
   rndBreedAmt: 0.1,
-  //1 - Buy Sell Only
-  //2 - Buy Sell Position Size
-  outputSize: 4,
+  //1 - Long Buy Sell & Pos
+  //2 - Long+Short Buy Sell & Pos
+  outputSize: 2,
   // see what tradeManager returns
   noveltySearchAddRandom: 4,
   noveltySearchAddFittest: 0,

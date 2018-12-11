@@ -137,15 +137,28 @@ const TradeManager = {
   //   }
   // },
 
-  handleCandle: function(candle, [longSig, longSize, shortSig, shortSize]) {
-    //    positionSize = positionSize === undefined ? 0 : positionSize;
+  handleCandle: function(candle, [longSig, shortSig]) {
+    // Buy/Sell signal mapping as below
+    //
+    //         /
+    //    ____/
+    //   /
+    //  /
+    //
 
-    // buySize = 0.1
-    // sellSize = 0.1
+    const signal =
+      Math.max(0, Math.abs(longSig) - this.longThresh) * Math.sign(longSig);
 
-    if (longSig > 0) {
-      this.doLong(longSize, candle);
+    this.doLong(signal, candle);
+
+    /*    if (longSig > this.longThresh) {
+      this.doLong((1+this.longThresh)*(longSig-this.longThresh), candle);
     }
+    else
+    if (longSig < this.longThresh) {
+      this.doLong((1+this.longThresh)*(longSig+this.longThresh), candle);
+    }
+*/
 
     /*    if (!(this.tickCount & 1)) {
       const currentWorth =
@@ -166,7 +179,6 @@ const TradeManager = {
     if (this.asset > 0) {
       this.exposure++;
     }
-
     this.tickCount++;
   },
 
