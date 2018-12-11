@@ -66,15 +66,13 @@ const TradeManager = {
     };
   },
 
-  doLong: function(positionSize, [, , , close]) {
+  doLong: function(changeAmt, [, , , close]) {
     try {
-      if (positionSize > 1) {
-        positionSize = 1;
-      } else if (positionSize < -1) {
-        positionSize = -1;
+      if (changeAmt > 1) {
+        changeAmt = 1;
+      } else if (changeAmt < -1) {
+        changeAmt = -1;
       }
-
-      let changeAmt = positionSize;
 
       if (changeAmt > 0 && this.currency > 0) {
         const change = this.currency * changeAmt;
@@ -93,10 +91,11 @@ const TradeManager = {
       } else if (changeAmt < 0 && this.asset > 0) {
         changeAmt = -changeAmt;
 
-        let change = this.asset * changeAmt;
+        let change = Math.max(this.asset * changeAmt, this.minQuantity);
+
         this.asset -= change;
 
-        if (this.asset * close < this.currency * 0.05) {
+        if (this.asset < this.minQuantity) {
           change += this.asset;
           this.asset = 0;
           changeAmt = 1;
@@ -108,11 +107,7 @@ const TradeManager = {
         this.currency += sellVal;
 
         const value = this.getValue(close);
-
-        this.sells++;
-
         const deltaValue = value - this.currentValue;
-
         if (deltaValue >= 0) {
           this.avgWin += deltaValue;
           this.tradesWon++;
@@ -121,6 +116,7 @@ const TradeManager = {
           this.tradesLost++;
         }
 
+        this.sells++;
         // this.currentValue = Value;
       }
 
