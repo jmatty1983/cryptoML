@@ -187,7 +187,7 @@ const NeatTrainer = {
       this.neat.population[
         id
       ].candidateSortingObjectives = this.neatConfig.candidateSortingCriteria
-        .map(objective => [-testStats[objective] - trainStats[objective]])
+        .map(objective => [-testStats[objective], -trainStats[objective]])
         .reduce((acc, val) => [...acc, ...val], []);
     });
 
