@@ -52,7 +52,6 @@ const mutations = [
   mutation.SUB_BACK_CONN,
 
   mutation.SWAP_NODES
-  //  mutation.SWAP_NODES
 ];
 
 const NeatTrainer = {
@@ -75,35 +74,75 @@ const NeatTrainer = {
     this.pair = pair;
     this.type = type;
     this.length = length;
+
+    this.candidatePopulation = [];
+    this.noveltySearchArchive = [];
+    this.parentPopulation = [];
+
     this.workers = Array(
       parseInt(process.env.THREADS) || os.cpus().length
     ).fill(null);
     this.data = this.dataManager.checkDataExists(pair, type, length)
       ? this.dataManager.loadData(pair, type, length, indicatorConfig)
       : [];
-
-    /*    if (this.data.length) {
-      this.neat = new Neat(this.data.length, 1, null, {
-        mutation: methods.mutation.ALL,
-        popsize: this.neatConfig.populationSize,
-        mutationRate: this.neatConfig.mutationRate,
-      });
-
-      this.neat.population = this.neat.population.map( m => new architect.Random(
-          this.data.length,
-          1,
-          this.neatConfig.outputSize)
-      )
-    }*/
   },
 
   breed: function() {
     this.neat.sort();
+
+    let getUniqueOffspring = () => {
+      let offspring = null;
+      do {
+        offspring = this.neat.getOffspring();
+      } while (
+        this.parentPopulation.some(
+          genome =>
+            JSON.stringify(genome.toJSON()) ===
+            JSON.stringify(offspring.toJSON())
+        )
+      );
+      return offspring;
+    };
+
+    this.neat.population = new Array(this.neat.popsize)
+      .fill(null)
+      .map(getUniqueOffspring);
+
+    this.neat.mutate();
+
+    // genome naming
+
+    const date = Date.now();
+    this.neat.population.forEach(genome => {
+      const gstr = JSON.stringify(genome.toJSON());
+      genome.name =
+        phonetic.generate({
+          seed: gstr,
+          syllables: 2 + (gstr.length % 2)
+        }) +
+        "-" +
+        phonetic.generate({
+          seed: date + JSON.stringify(this.generation),
+          syllables: 2 + (this.generation % 2)
+        });
+    });
+
+    if (this.neatConfig.discardDuplicateGenomes) {
+      this.neat.population = this.neat.population.filter((genome1, index) =>
+        this.neat.population.some(
+          (genome2, index2) =>
+            !(
+              index2 > index &&
+              JSON.stringify(genome1.toJSON()) ===
+                JSON.stringify(genome2.toJSON())
+            )
+        )
+      );
+    }
+
     {
       Logger.debug(`Generation ${this.generation}`);
-      // Logger.debug(this.candidatePopulation.length)
       this.candidatePopulation
-        //        .sort((a,b)=>b.testStats.value-a.testStats.value)
         .filter(g => g.testStats.value >= 1 && g.stats.value >= 1)
         .filter((g, index) => index < 8)
         .forEach(g => {
@@ -120,60 +159,11 @@ const NeatTrainer = {
           );
         });
     }
-
-    let dupes = 0;
-    this.neat.population = new Array(this.neat.popsize).fill(null).map(() => {
-      let offspring = null;
-      // dupes--;
-      do {
-        offspring = this.neat.getOffspring();
-        // dupes++;
-      } while (
-        this.parentPopulation.some(
-          genome =>
-            JSON.stringify(genome.toJSON()) ===
-            JSON.stringify(offspring.toJSON())
-        )
-      );
-      return offspring;
-    });
-
-    this.neat.mutate();
-
-    const date = Date.now();
-    this.neat.population.forEach(
-      genome =>
-        (genome.name =
-          phonetic.generate({
-            seed: JSON.stringify(genome.toJSON()),
-            syllables: 2 + (JSON.stringify(genome.toJSON()).length % 2)
-          }) +
-          "-" +
-          phonetic.generate({
-            seed: date + JSON.stringify(this.generation),
-            syllables: 2 + (this.generation % 2)
-          }))
-    );
-
-    /*    this.neat.population = this.neat.population
-      .filter( (genome,index) => this.neat.population
-        .some( (genome2,index2) => {
-          return !(index2>index && JSON.stringify(genome.toJSON()) === JSON.stringify(genome2.toJSON()))
-        })
-      )*/
-
-    /*    if (dupes) {
-      Logger.debug(
-        `Discarded & rebred ${dupes}`
-      );
-    }*/
   },
 
   getFitness: function({ profit, buys, sells }) {
     return (profit - 1) * 100 * Math.atan(buys * sells);
   },
-
-  //
 
   processStatistics: function(results) {
     results.forEach(({ trainStats, testStats, id }) => {
@@ -191,17 +181,7 @@ const NeatTrainer = {
         .reduce((acc, val) => [...acc, ...val], []);
     });
 
-    if (this.noveltySearchArchive === undefined) {
-      this.noveltySearchArchive = [];
-    }
-
-    if (this.parentPopulation === undefined) {
-      this.parentPopulation = [];
-    }
-
-    if (this.candidatePopulation === undefined) {
-      this.candidatePopulation = [];
-    }
+    // process candidate population
 
     this.candidatePopulation = [
       ...this.candidatePopulation,
@@ -219,14 +199,14 @@ const NeatTrainer = {
       genome => genome.candidateSortingObjectives
     );
 
-    // console.log(candidatesToSort)
-
     GBOS(candidatesToSort).forEach((rank, index) => {
       this.candidatePopulation[index].rank = rank;
     });
 
     this.candidatePopulation.sort((a, b) => a.rank - b.rank);
     this.candidatePopulation.length = this.neatConfig.populationSize;
+
+    // perform novelty search & sorting
 
     this.neat.population = [...this.neat.population, ...this.parentPopulation];
 
@@ -238,7 +218,11 @@ const NeatTrainer = {
       genome => genome.noveltySearchObjectives
     );
 
-    const novelties = noveltySearch(nsObj, archive, 1.75);
+    const novelties = noveltySearch(
+      nsObj,
+      archive,
+      this.neatConfig.noveltySearchDistanceOrder || 2
+    );
 
     this.neat.population.forEach((genome, index) => {
       genome.stats.novelty = novelties[index];
@@ -249,12 +233,6 @@ const NeatTrainer = {
       }
     });
 
-    //    this.neat.population.sort( (a,b) => b.stats.novelty - a.stats.novelty )
-
-    // Logger.debug(this.noveltySearchArchive.length)
-
-    // Logger.debug(this.neat.population.length)
-
     const toSort = this.neat.population.map(genome => genome.sortingObjectives);
     GBOS(toSort).forEach((rank, index) => {
       this.neat.population[index].score = -rank;
@@ -263,32 +241,28 @@ const NeatTrainer = {
 
     this.neat.sort();
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < this.neatConfig.noveltySearchAddRandom; i++) {
       this.noveltySearchArchive.push(
         this.neat.population[
           Math.floor(Math.random() * this.neat.population.length)
         ]
       );
-      //      console.log(this.neat.population[i].stats.novelty)//this.neat.population[i].noveltySearchObjectives)
-      /*      this.noveltySearchArchive
-        .push
-          this.neat.population[i]
-        ();*/
     }
+
+    for (let i = 0; i < this.neatConfig.noveltySearchAddFittest; i++) {
+      this.noveltySearchArchive.push(this.neat.population[i]);
+    }
+
     this.neat.population.length = this.neatConfig.populationSize;
     this.parentPopulation = this.neat.population;
-
-    //    const candidateObjectives = this.parentPopulation.map
   },
-
-  //
 
   train: async function() {
     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
     this.neat.population.forEach((genome, i) => {
-      genome.generation = this.generation;
       genome.id = i;
       genome.clear();
+      genome.generation = this.generation;
     });
 
     const chunkedPop = ArrayUtils.chunk(
@@ -320,6 +294,8 @@ const NeatTrainer = {
 
     let results = ArrayUtils.flatten(await Promise.all(work));
     this.processStatistics(results);
+
+    // TODO: handle this differently
 
     results.forEach(({ trainStats, testStats, id }) => {
       const testScore = testStats.value;
@@ -355,11 +331,6 @@ const NeatTrainer = {
       // .filter((_,index) => (index===1||index===2||index===4))
       .map(percentageChangeLog2);
 
-    // this.normalisedData = this.data.map(array => percentageChangeLog2(array));
-
-    // this.normalisedData
-    // .forEach( array => Logger.debug( array.reduce( (acc,val) => acc+val,0) / array.length))
-
     if (this.normalisedData.length) {
       Logger.info(
         `Creating a new population. I/O size: ${this.normalisedData.length}/${
@@ -367,7 +338,7 @@ const NeatTrainer = {
         }`
       );
       this.neat = new Neat(this.normalisedData.length, 1, null, {
-        mutation: mutations, //methods.mutation.ALL,
+        mutation: mutations,
         popsize: this.neatConfig.populationSize,
         mutationRate: this.neatConfig.mutationRate,
         mutationAmount: this.neatConfig.mutationAmount,
@@ -385,9 +356,13 @@ const NeatTrainer = {
       );
     }
 
-    //Split data into 60% train, 5% gap, 35% test
-    const trainAmt = Math.trunc(this.normalisedData[0].length * 0.7);
-    const gapAmt = Math.trunc(this.normalisedData[0].length * 0.05);
+    //Split data into 65% train, 5% gap, 30% test
+    const trainAmt = Math.trunc(
+      this.normalisedData[0].length * this.neatConfig.trainAmt
+    );
+    const gapAmt = Math.trunc(
+      this.normalisedData[0].length * this.neatConfig.gapAmt
+    );
     this.trainData = this.normalisedData.map(array => array.slice(0, trainAmt));
     this.testData = this.normalisedData.map(array =>
       array.slice(trainAmt + gapAmt)
