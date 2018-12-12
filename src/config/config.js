@@ -18,13 +18,19 @@ exports.neatConfig = {
   outputSize: 2,
   // how do we select candidates for paper/live?
   // note: see what tradeManager returns
-  candidateSortingCriteria: ["OK", "value", "currency", "winRate", "R"],
+  candidateSortingCriteria: [
+    "OK",
+    "currency",
+    "profit",
+    "R"
+    // "winRate",
+  ],
   // novelty search related
   noveltySearchDistanceOrder: 1.8,
   noveltySearchAddRandom: 4,
   noveltySearchAddFittest: 0,
   noveltySearchObjectives: [
-    "winRate",
+    // "winRate",
     "exposure",
     "avgPosAdd",
     "avgPosRem",
@@ -43,7 +49,7 @@ exports.neatConfig = {
     "currency",
     "R",
     "novelty",
-    "winRate",
+    // "winRate",
     "buys",
     "sells"
   ],

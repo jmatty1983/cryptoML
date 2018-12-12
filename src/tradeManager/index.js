@@ -176,7 +176,7 @@ const TradeManager = {
       this.handleCandle(candle, output);
     });
 
-    // this.doLong(-1, this.data[this.data.length - 1]);
+    this.doLong(-1, this.data[this.data.length - 1]);
 
     const value = this.getValue(this.closes[this.closes.length - 1]);
 

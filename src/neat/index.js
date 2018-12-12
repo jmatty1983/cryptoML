@@ -9,6 +9,7 @@ const GBOS = require("GBOS-js");
 const noveltySearch = require("./noveltySearch");
 
 const phonetic = require("phonetic");
+const table = require("table");
 
 const { percentageChangeLog2 } = require("./normFuncs").percentChange;
 const ArrayUtils = require("../lib/array");
@@ -123,25 +124,54 @@ const NeatTrainer = {
     }
 
     {
-      Logger.debug(`Generation ${this.generation}`);
-      this.candidatePopulation
-        .filter(g => g.testStats.value > 1 && g.stats.value > 1)
-        .filter((g, index) => index < 8)
-        .forEach(g => {
-          const PL = 100 * g.stats.profit;
-          const PLt = 100 * g.testStats.profit;
-          Logger.debug(
-            `G${g.generation}\t- Train: ${PL.toFixed(
-              2
-            )}% ${g.stats.buys.toFixed(2)} ${g.stats.sells.toFixed(
-              2
-            )} ${g.stats.winRate.toFixed(2)}\t Test: ${PLt.toFixed(
-              2
-            )}% ${g.testStats.buys.toFixed(2)} ${g.testStats.sells.toFixed(
-              2
-            )} ${g.testStats.winRate.toFixed(2)}\t\t(${g.name})`
-          );
+      const tableOptions = {
+        columnDefault: {
+          paddingLeft: 0,
+          paddingRight: 0
+        },
+        border: table.getBorderCharacters(`void`),
+        columnDefault: {
+          alignment: "right"
+        },
+        drawHorizontalLine: (index, size) => {
+          return index < 1 || index === size;
+        }
+      };
+
+      const header = [
+        "Gen " + this.generation,
+        "Profit",
+        "Wins",
+        "Losses",
+        "WinRate",
+        "",
+        "Profit",
+        "Wins",
+        "Losses",
+        "WinRate"
+      ];
+      const d = this.candidatePopulation
+        .filter((_, index) => index < 8)
+        .map(g => {
+          return [
+            g.generation,
+            (100 * g.stats.profit).toFixed(2) + "%",
+            g.stats.buys.toFixed(2),
+            g.stats.sells.toFixed(2),
+            g.stats.winRate.toFixed(2),
+            "/",
+            (100 * g.testStats.profit).toFixed(2) + "%",
+            g.testStats.buys.toFixed(2),
+            g.testStats.sells.toFixed(2),
+            g.testStats.winRate.toFixed(2)
+          ];
         });
+
+      table
+        .table([[...header], ...d], tableOptions)
+        .slice(1, -1)
+        .split("\n")
+        .forEach(Logger.debug);
     }
   },
 
@@ -183,14 +213,13 @@ const NeatTrainer = {
 
     this.candidatePopulation = [
       ...this.candidatePopulation,
-      ...this.neat.population.filter(
-        genome1 =>
-          !this.candidatePopulation.some(
-            genome2 =>
-              JSON.stringify(genome1.toJSON()) ===
-              JSON.stringify(genome2.toJSON())
-          )
-      )
+      ...this.neat.population.filter(genome1 => {
+        return !this.candidatePopulation.some(
+          genome2 =>
+            JSON.stringify(genome1.toJSON()) ===
+            JSON.stringify(genome2.toJSON())
+        );
+      })
     ];
 
     const candidatesToSort = this.candidatePopulation.map(
@@ -203,6 +232,10 @@ const NeatTrainer = {
 
     this.candidatePopulation.sort((a, b) => a.rank - b.rank);
     this.candidatePopulation.length = this.neatConfig.populationSize;
+
+    this.candidatePopulation = this.candidatePopulation.filter(
+      genome => genome.stats.profit > 0 && genome.testStats.profit > 0
+    );
 
     // perform novelty search & sorting
 
