@@ -2,19 +2,25 @@
 
 exports.neatConfig = {
   populationSize: 200,
-  mutationRate: 1,
+  mutationRate: 0.5,
   mutationAmount: 1,
+
+  trainAmt: 0.65,
+  gapAmt: 0.05,
+
   fitBreedAmt: 0.1,
   rndBreedAmt: 0.1,
-  //1 - Long Buy Sell & Pos
-  //2 - Long+Short Buy Sell & Pos
+
+  discardDuplicateGenomes: false,
+
+  // 1 - Long Buy Sell & Pos
+  // 2 - Long+Short Buy Sell & Pos
   outputSize: 2,
   // how do we select candidates for paper/live?
-  candidateSortingCriteria: [
-    "value"
-    // "winRate",
-  ],
-  // see what tradeManager returns
+  // note: see what tradeManager returns
+  candidateSortingCriteria: ["OK", "value", "currency", "winRate", "R"],
+  // novelty search related
+  noveltySearchDistanceOrder: 1.8,
   noveltySearchAddRandom: 4,
   noveltySearchAddFittest: 0,
   noveltySearchObjectives: [

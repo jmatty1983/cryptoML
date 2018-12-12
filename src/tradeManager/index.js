@@ -227,6 +227,7 @@ const TradeManager = {
         this.sells > 0 &&
         this.wins > 0 &&
         this.losses > 0 &&
+        this.R > 1 &&
         value > 1
     };
   }
