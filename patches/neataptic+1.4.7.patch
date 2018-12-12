@@ -1,0 +1,12 @@
+patch-package
+--- a/node_modules/neataptic/src/architecture/node.js
++++ b/node_modules/neataptic/src/architecture/node.js
+@@ -12,7 +12,7 @@ var config = require('../config');
+ 
+ function Node (type) {
+   this.bias = (type === 'input') ? 0 : Math.random() * 0.2 - 0.1;
+-  this.squash = methods.activation.LOGISTIC;
++  this.squash = methods.activation.TANH;
+   this.type = type || 'hidden';
+ 
+   this.activation = 0;

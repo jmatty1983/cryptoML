@@ -372,8 +372,8 @@ const NeatTrainer = {
 
     const workerData = {
       trainDataRaw: this.trainDataRaw,
-      testDataRaw: this.testDataRaw,
       trainData: this.trainData,
+      testDataRaw: this.testDataRaw,
       testData: this.testData,
       traderConfig
     };

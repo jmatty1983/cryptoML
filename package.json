@@ -4,6 +4,7 @@
   "description": "",
   "main": "main.js",
   "scripts": {
+    "prepare": "patch-package",
     "start": "node --experimental-worker src/main",
     "start:ui": "node ui/server.js",
     "build:ui": "webpack --mode development",
@@ -43,6 +44,7 @@
     "mocha": "^5.2.0",
     "neataptic": "^1.4.7",
     "nyc": "^13.1.0",
+    "phonetic": "^0.1.1",
     "prettier": "^1.14.3",
     "react": "^16.7.0-alpha.2",
     "react-dom": "^16.7.0-alpha.2",
@@ -56,5 +58,8 @@
     "webpack-dev-middleware": "^3.4.0",
     "webpack-hot-middleware": "^2.24.3",
     "winston": "^3.1.0"
+  },
+  "devDependencies": {
+    "patch-package": "^5.1.1"
   }
 }
