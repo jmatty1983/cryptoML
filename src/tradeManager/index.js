@@ -16,13 +16,14 @@ const TradeManager = {
   ) {
     this.genome = genome;
 
-    const [opens, highs, lows, closes, volumes] = data;
+    const [opens, highs, lows, closes, volumes, start] = data;
     this.data = data;
     this.opens = opens;
     this.highs = highs;
     this.lows = lows;
     this.closes = closes;
     this.volumes = volumes;
+    this.start = start;
 
     this.networkInput = networkInput;
     this.longThresh = longThresh;
@@ -190,13 +191,20 @@ const TradeManager = {
     this.avgWin = safeDiv(this.avgWin, this.tradesWon);
     this.avgLoss = safeDiv(this.avgLoss, this.tradesLost);
 
+    const timeSpanInMonths =
+      (this.start[this.start.length - 1] - this.start[0]) /
+      (1000 * 60 * 60 * 24 * (365 / 12));
+
+    const profit = (value - 1) / timeSpanInMonths;
+
     return {
       currency: this.currency,
       startCurrency: this.startCurrency,
       asset: this.asset,
+      profit: profit,
       value: value,
-      buys: this.buys,
-      sells: this.sells,
+      buys: this.buys / timeSpanInMonths,
+      sells: this.sells / timeSpanInMonths,
 
       buysToTimeSpanRatio: this.buys / this.candleCount,
       sellsToTimeSpanRatio: this.sells / this.candleCount,
@@ -209,8 +217,8 @@ const TradeManager = {
       wins: this.tradesWon,
       losses: this.tradesLost,
 
-      avgPosAdd: this.avgPosAdd / Math.max(Number.EPSILON, this.buys),
-      avgPosRem: this.avgPosRem / Math.max(Number.EPSILON, this.sells),
+      avgPosAdd: safeDiv(this.avgPosAdd, this.buys),
+      avgPosRem: safeDiv(this.avgPosRem, this.sells),
 
       R: safeDiv(this.avgWin, -this.avgLoss),
       winRate: safeDiv(this.tradesWon, this.tradesWon + this.tradesLost),

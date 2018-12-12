@@ -157,7 +157,8 @@ const DataManager = {
       ArrayUtils.getProp("high", candles),
       ArrayUtils.getProp("low", candles),
       ArrayUtils.getProp("close", candles),
-      ArrayUtils.getProp("volume", candles)
+      ArrayUtils.getProp("volume", candles),
+      ArrayUtils.getProp("startTime", candles)
     ];
 
     indicators.forEach(indicator =>

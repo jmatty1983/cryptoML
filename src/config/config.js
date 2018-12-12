@@ -39,7 +39,7 @@ exports.neatConfig = {
   //
   sortingObjectives: [
     "OK",
-    "value",
+    "profit",
     "currency",
     "R",
     "novelty",
@@ -73,13 +73,13 @@ exports.neatConfig = {
 };
 
 exports.indicatorConfig = [
-  /*  {
+  {
     name: "sma",
     params: [9],
     //just a place holder for now. Will allow different normalising functions to be applied
     //to different indicators
     normFunc: "log2"
-  }*/
+  }
 ];
 
 exports.traderConfig = {
