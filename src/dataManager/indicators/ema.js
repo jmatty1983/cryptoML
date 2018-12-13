@@ -1,4 +1,4 @@
-const EMA = (length, [, closes]) =>
+const EMA = (length, [, , , closes]) =>
   closes.slice(1).reduce(
     (ema, item) => {
       const multipier = 2 / (length + 1);
