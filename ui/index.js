@@ -9,6 +9,7 @@ setConfig({
 import { BrowserRouter as Router, Route } from "react-router-dom";
 
 import Chart from "./pages/Chart";
+import Line from "./pages/Line";
 
 const App = () => (
   <Router basename="/">

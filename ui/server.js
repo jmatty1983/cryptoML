@@ -31,6 +31,24 @@ app.get("/chart/json/:table", (req, res) => {
   res.setHeader("Content-Type", "application/json");
   res.json(candles);
 });
+app.get("/json/:coin/:asset/:type/:length", (req, res) => {
+  //let table = "BCHSV/USDT"
+  //let pair = 'BCHSV/USDT';
+  let pair = req.params.coin + "/" + req.params.asset;
+  //let type = 'tick';
+  //let length = '100';
+  //let indicators = [];
+  //const pair = req.params.pair;
+  const type = req.params.type;
+  const length = req.params.length;
+  const indicators = req.params.indicators;
+  const dataManager = Object.create(DataManager);
+  dataManager.init(exchange, dataDir, dbExt);
+  //const data = dataManager.loadCandles(table)
+  const data = dataManager.loadData(pair, type, length, indicators);
+  res.setHeader("Content-Type", "application/json");
+  res.json(data);
+});
 
 app.get("*", (req, res) =>
   res.sendFile(path.resolve(__dirname, "./dist/index.html"))
