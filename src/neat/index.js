@@ -3,6 +3,18 @@ const { Neat, methods, architect } = require("neataptic");
 const os = require("os");
 const { Worker, MessageChannel } = require("worker_threads");
 
+//NORMALISATIONS
+const { MADArray } = require("./normFuncs").MAD;
+const { MADPoints } = require("./normFuncs").MAD;
+const { medianArray } = require("./normFuncs").median;
+const { medianPoints } = require("./normFuncs").median;
+const { scaleArray } = require("./normFuncs").scale;
+const { scalePoints } = require("./normFuncs").scale;
+const { zScoreArray } = require("./normFuncs").zScore;
+const { zScorePoints } = require("./normFuncs").zScore;
+const { NormaliseArray } = require("./normFuncs").highLow;
+const { NormalisedPoints } = require("./normFuncs").highLow;
+
 const { percentageChangeLog2 } = require("./normFuncs").percentChange;
 const ArrayUtils = require("../lib/array");
 const {
@@ -70,8 +82,15 @@ const NeatTrainer = {
     this.neat.mutate();
   },
 
-  getFitness: function({ currency, startCurrency }) {
-    return (currency / startCurrency) * 100;
+  getFitness: function({ currency, startCurrency, buys, sells }) {
+    //console.log(buys-sells)
+    let score = 0;
+    if (buys - sells <= 10) {
+      score = -Infinity;
+    } else {
+      score = (currency / startCurrency) * 100;
+    }
+    return score;
   },
 
   train: async function() {
@@ -136,7 +155,12 @@ const NeatTrainer = {
     Logger.info("Starting genome search");
 
     this.normalisedData = this.data.map(array => percentageChangeLog2(array));
-
+    //this.normalisedData = this.data.map(array => medianArray(array, medianPoints(array)));
+    //this.normalisedData = this.data.map(array => MADArray(array, MADPoints(array)));
+    //this.normalisedData = this.data.map(array => scaleArray(array, scalePoints(array)));
+    //this.normalisedData = this.data.map(array => zScoreArray(array, zScorePoints(array)));
+    //this.normalisedData = this.data.map(array => NormaliseArray(array, NormalisedPoints(array)));
+    Logger.debug(this.normalisedData.length);
     //Split data into 60% train, 5% gap, 35% test
     const trainAmt = Math.trunc(this.normalisedData[0].length * 0.6);
     const gapAmt = Math.trunc(this.normalisedData[0].length * 0.05);
