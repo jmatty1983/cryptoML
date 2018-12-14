@@ -8,7 +8,7 @@ const TradeManager = {
     {
       longThresh,
       shortThresh,
-      positionChangeThesh,
+      positionChangeThresh,
       fees,
       slippage,
       allowShorts
@@ -28,7 +28,7 @@ const TradeManager = {
     this.networkInput = networkInput;
     this.longThresh = longThresh;
     this.shortThresh = shortThresh;
-    this.positionChangeThesh = positionChangeThesh;
+    this.positionChangeThresh = positionChangeThresh;
     this.fees = fees;
     this.slippage = slippage;
     this.allowShorts = allowShorts;
@@ -56,7 +56,7 @@ const TradeManager = {
 
     this.exposure = 0;
 
-    this.minQuantity = 0.1;
+    this.minQuantity = 0.00001;
 
     //More notes for future me. It may be worth experimenting with inputting current position
     //information for the model.
@@ -75,12 +75,20 @@ const TradeManager = {
         changeAmt = -1;
       }
 
+      if (this.asset === 0) {
+        this.startCurrency = this.currency;
+      }
+
       if (changeAmt > 0 && this.currency > 0) {
+        changeAmt =
+          changeAmt * (1 - this.positionChangeThresh) +
+          this.positionChangeThresh;
+
         const change = this.currency * changeAmt;
 
         const quantity = (change * (1 - (this.fees + this.slippage))) / close;
-        if (quantity >= this.minQuantity) {
-          const f = quantity / this.minQuantity;
+
+        if (quantity >= this.positionChangeThresh * this.startCurrency) {
           this.currency -= change;
           this.avgPosAdd += changeAmt;
 
@@ -91,33 +99,40 @@ const TradeManager = {
         }
       } else if (changeAmt < 0 && this.asset > 0) {
         changeAmt = -changeAmt;
+        {
+          //        if( changeAmt >= this.positionChangeThresh) {
+          changeAmt =
+            changeAmt * (1 - this.positionChangeThresh) +
+            this.positionChangeThresh;
+          let change = this.asset * changeAmt;
+          change = Math.max(this.asset * changeAmt, this.minQuantity);
+          change = Math.min(this.asset, change);
 
-        let change = Math.max(this.asset * changeAmt, this.minQuantity);
+          this.asset -= change;
 
-        this.asset -= change;
+          /*          if (this.asset < this.minQuantity) {
+            change += this.asset;
+            this.asset = 0;
+            changeAmt = 1;
+          }*/
 
-        if (this.asset < this.minQuantity) {
-          change += this.asset;
-          this.asset = 0;
-          changeAmt = 1;
+          this.avgPosRem += changeAmt;
+
+          const sellVal = change * (1 - (this.fees + this.slippage)) * close;
+          this.currency += sellVal;
+
+          const value = this.getValue(close);
+          const deltaValue = value - this.currentValue;
+          if (deltaValue >= 0) {
+            this.avgWin += deltaValue;
+            this.tradesWon++;
+          } else if (deltaValue < 0) {
+            this.avgLoss += deltaValue;
+            this.tradesLost++;
+          }
+
+          this.sells++;
         }
-
-        this.avgPosRem += changeAmt;
-
-        const sellVal = change * (1 - (this.fees + this.slippage)) * close;
-        this.currency += sellVal;
-
-        const value = this.getValue(close);
-        const deltaValue = value - this.currentValue;
-        if (deltaValue >= 0) {
-          this.avgWin += deltaValue;
-          this.tradesWon++;
-        } else if (deltaValue < 0) {
-          this.avgLoss += deltaValue;
-          this.tradesLost++;
-        }
-
-        this.sells++;
         // this.currentValue = Value;
       }
 
@@ -154,7 +169,12 @@ const TradeManager = {
     const signal =
       Math.max(0, Math.abs(longSig) - this.longThresh) * Math.sign(longSig);
 
-    this.doLong(signal, candle);
+    if (!this.posTrigger) {
+      this.doLong(signal, candle);
+      this.posTrigger = true;
+    } else if (this.posTrigger && !signal) {
+      this.posTrigger = false;
+    }
 
     if (this.asset > 0) {
       this.exposure++;
@@ -173,20 +193,19 @@ const TradeManager = {
         []
       );
       const output = this.genome.noTraceActivate(candleInput);
+      // if( Math.random()<0.1) Logger.debug(output)
       this.handleCandle(candle, output);
     });
 
-    this.doLong(-1, this.data[this.data.length - 1]);
+    // this.doLong(-1, this.data[this.data.length - 1]);
 
     const value = this.getValue(this.closes[this.closes.length - 1]);
 
     // this.tradesWon = Math.max(Number.EPSILON,this.tradesWon)
     // this.tradesLost = Math.max(Number.EPSILON,this.tradesLost)
 
-    function safeDiv(num, denom) {
-      if (Math.abs(denom) <= Number.EPSILON) return 0;
-      return num / denom;
-    }
+    let safeDiv = (num, denom) =>
+      Math.abs(denom) <= Number.EPSILON ? 0 : num / denom;
 
     this.avgWin = safeDiv(this.avgWin, this.tradesWon);
     this.avgLoss = safeDiv(this.avgLoss, this.tradesLost);
@@ -214,8 +233,8 @@ const TradeManager = {
       avgWin: this.avgWin,
       avgLoss: this.avgLoss,
 
-      wins: this.tradesWon,
-      losses: this.tradesLost,
+      wins: this.tradesWon / timeSpanInMonths,
+      losses: this.tradesLost / timeSpanInMonths,
 
       avgPosAdd: safeDiv(this.avgPosAdd, this.buys),
       avgPosRem: safeDiv(this.avgPosRem, this.sells),

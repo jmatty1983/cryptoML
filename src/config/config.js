@@ -18,19 +18,13 @@ exports.neatConfig = {
   outputSize: 2,
   // how do we select candidates for paper/live?
   // note: see what tradeManager returns
-  candidateSortingCriteria: [
-    "OK",
-    "currency",
-    "profit",
-    "R"
-    // "winRate",
-  ],
+  candidateSortingCriteria: ["OK", "currency", "profit", "R", "winRate"],
   // novelty search related
   noveltySearchDistanceOrder: 1.8,
   noveltySearchAddRandom: 4,
   noveltySearchAddFittest: 0,
   noveltySearchObjectives: [
-    // "winRate",
+    "winRate",
     "exposure",
     "avgPosAdd",
     "avgPosRem",
@@ -49,7 +43,7 @@ exports.neatConfig = {
     "currency",
     "R",
     "novelty",
-    // "winRate",
+    "winRate",
     "buys",
     "sells"
   ],
@@ -79,13 +73,13 @@ exports.neatConfig = {
 };
 
 exports.indicatorConfig = [
-  {
+  /*  {
     name: "sma",
     params: [9],
     //just a place holder for now. Will allow different normalising functions to be applied
     //to different indicators
     normFunc: "log2"
-  }
+  }*/
 ];
 
 exports.traderConfig = {

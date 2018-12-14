@@ -123,7 +123,7 @@ const NeatTrainer = {
       );
     }
 
-    {
+    let dispStats = genomes => {
       const tableOptions = {
         columnDefault: {
           paddingLeft: 0,
@@ -140,38 +140,54 @@ const NeatTrainer = {
 
       const header = [
         "Gen " + this.generation,
+        "  ",
         "Profit",
-        "Wins",
-        "Losses",
+        "Buys",
+        "Sells",
         "WinRate",
-        "",
+        "  ",
         "Profit",
-        "Wins",
-        "Losses",
-        "WinRate"
+        "Buys",
+        "Sells",
+        "WinRate",
+        " ",
+        "Name"
       ];
-      const d = this.candidatePopulation
-        .filter((_, index) => index < 8)
-        .map(g => {
-          return [
-            g.generation,
-            (100 * g.stats.profit).toFixed(2) + "%",
-            g.stats.buys.toFixed(2),
-            g.stats.sells.toFixed(2),
-            g.stats.winRate.toFixed(2),
-            "/",
-            (100 * g.testStats.profit).toFixed(2) + "%",
-            g.testStats.buys.toFixed(2),
-            g.testStats.sells.toFixed(2),
-            g.testStats.winRate.toFixed(2)
-          ];
-        });
 
-      table
-        .table([[...header], ...d], tableOptions)
-        .slice(1, -1)
-        .split("\n")
-        .forEach(Logger.debug);
+      const d = genomes.map((g, index) => {
+        return [
+          g.generation,
+          " Train".charAt(index),
+          (100 * g.stats.profit).toFixed(2) + "%",
+          g.stats.buys.toFixed(2),
+          g.stats.sells.toFixed(2),
+          g.stats.winRate.toFixed(2),
+          " Test".charAt(index),
+          (100 * g.testStats.profit).toFixed(2) + "%",
+          g.testStats.buys.toFixed(2),
+          g.testStats.sells.toFixed(2),
+          g.testStats.winRate.toFixed(2),
+          " ",
+          g.name
+        ];
+      });
+
+      if (d.length) {
+        table
+          .table([[...header], ...d], tableOptions)
+          .slice(1, -1)
+          .split("\n")
+          .forEach(Logger.debug);
+      } else {
+        Logger.debug(
+          `No candidates discovered in generation ${this.generation}`
+        );
+      }
+    };
+    {
+      dispStats(this.candidatePopulation.filter((_, index) => index < 8));
+      // dispStats( this.parentPopulation
+      // .filter((_, index) => index < 3))
     }
   },
 
@@ -358,13 +374,15 @@ const NeatTrainer = {
   start: async function() {
     Logger.info("Starting genome search");
 
+    // this.data = this.data.map( lane => lane.slice(0,lane.length>>2) )
+
     this.normalisedData = this.data
       .filter((_, index) => index !== 5)
-      // .filter((_,index) => (index===0||index===1||index===2||index===3||index==4))
+      .filter((_, index) => [1, 2].some(a => a === index))
       .map(percentageChangeLog2);
 
     if (this.normalisedData.length) {
-      Logger.info(
+      Logger.debug(
         `Creating a new population. I/O size: ${this.normalisedData.length}/${
           this.neatConfig.outputSize
         }`
@@ -402,6 +420,14 @@ const NeatTrainer = {
 
     this.trainDataRaw = this.data.map(array => array.slice(0, trainAmt));
     this.testDataRaw = this.data.map(array => array.slice(trainAmt + gapAmt));
+
+    let testTheData = data => data.every(d => d.every(val => 0 === val));
+
+    Logger.debug(testTheData(this.trainDataRaw));
+    Logger.debug(testTheData(this.testDataRaw));
+
+    Logger.debug(testTheData(this.trainData));
+    Logger.debug(testTheData(this.testData));
 
     const workerData = {
       trainDataRaw: this.trainDataRaw,
