@@ -15,7 +15,15 @@ const TradeManager = {
     }
   ) {
     this.genome = genome;
+
+    const [opens, highs, lows, closes, volumes] = data;
     this.data = data;
+    this.opens = opens;
+    this.highs = highs;
+    this.lows = lows;
+    this.closes = closes;
+    this.volumes = volumes;
+
     this.networkInput = networkInput;
     this.longThresh = longThresh;
     this.shortThresh = shortThresh;
@@ -40,7 +48,7 @@ const TradeManager = {
     };
   },
 
-  doLong: function(positionSize, candle) {
+  doLong: function(positionSize, [, , , close]) {
     try {
       if (positionSize > 1) {
         positionSize = 1;
@@ -68,8 +76,7 @@ const TradeManager = {
               : changeAmt * this.position.startCurrency;
           this.currency -= change;
 
-          this.asset +=
-            (change * (1 - (this.fees + this.slippage))) / candle[1];
+          this.asset += (change * (1 - (this.fees + this.slippage))) / close;
           this.buys++;
         } else {
           const fullPosition = (1 / this.position.size) * this.asset;
@@ -78,14 +85,17 @@ const TradeManager = {
           const change = posChange > this.asset ? this.asset : posChange;
           this.asset -= change;
 
-          const sellVal =
-            change * candle[1] * (1 - (this.fees + this.slippage));
+          const sellVal = change * close * (1 - (this.fees + this.slippage));
           this.currency += sellVal;
           this.sells++;
         }
 
+        if ((this.asset = 0)) {
+          this.position.type = "none";
+        }
+
         if (this.currency < 0 || this.asset < 0) {
-          console.log(`${this.currency} ${this.asset}`);
+          Logger.error(`c: ${this.currency} a: ${this.asset}`);
           throw "Currency or Asset dropped below 0";
         }
         this.position.size = positionSize;
@@ -113,11 +123,8 @@ const TradeManager = {
     }
   },
 
-  //leaving thoughts here for future me. probably don't need the raw candle data to be
-  //in the form of an array of arrays. can leave it as an object of arrays so we can reference
-  //something like this.data.close instead of this.data[1] which is a little awkward
   runTrades: function() {
-    this.data[0].forEach((x, index) => {
+    this.opens.forEach((x, index) => {
       const candleInput = this.networkInput.reduce(
         (array, item) => [...array, item[index]],
         []
@@ -134,7 +141,7 @@ const TradeManager = {
       currency: this.currency,
       startCurrency: this.startCurrency,
       asset: this.asset,
-      value: this.currency + this.asset * this.data[this.data.length - 1][1],
+      value: this.currency + this.asset * this.closes[this.closes.length - 1],
       buys: this.buys,
       sells: this.sells
     };
