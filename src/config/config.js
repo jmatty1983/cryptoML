@@ -1,7 +1,7 @@
 //IMPORTANT: All of these configs should be saved with the network genomes
 
 exports.neatConfig = {
-  populationSize: 200,
+  populationSize: 256,
   mutationRate: 0.5,
   mutationAmount: 1,
 
@@ -18,11 +18,11 @@ exports.neatConfig = {
   outputSize: 2,
   // how do we select candidates for paper/live?
   // note: see what tradeManager returns
-  candidateSortingCriteria: ["OK", "currency", "profit", "R", "winRate"],
+  candidateSortingCriteria: ["OK", "profit", "EV", "R", "winRate"],
   // novelty search related
   noveltySearchDistanceOrder: 1.8,
   noveltySearchAddRandom: 4,
-  noveltySearchAddFittest: 0,
+  noveltySearchAddFittest: 4,
   noveltySearchObjectives: [
     "winRate",
     "exposure",
@@ -34,16 +34,18 @@ exports.neatConfig = {
     "genomeSelfConnections",
     "buysToTradesRatio",
     "buysToTimeSpanRatio",
-    "sellsToTimeSpanRatio"
+    "sellsToTimeSpanRatio",
+    "avgExpDepth"
   ],
   //
   sortingObjectives: [
     "OK",
     "profit",
-    "currency",
+    // "currency",
     "R",
     "novelty",
     "winRate",
+    "EV",
     "buys",
     "sells"
   ],
@@ -84,7 +86,7 @@ exports.indicatorConfig = [
 
 exports.traderConfig = {
   //Threshold for network signal output to be interpreted as going long
-  longThresh: 1 / 32,
+  longThresh: (0 * 1) / 32,
   //Threshold for network signal output to be interpreted as going short
   shortThresh: 0,
   //Minimum positions size change required before placing an order

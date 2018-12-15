@@ -24,6 +24,9 @@ const Logger = require("../logger");
 // eww
 
 const mutation = methods.mutation;
+
+mutation.SWAP_NODES.mutateOutput = false;
+
 const mutations = [
   mutation.ADD_NODE,
   mutation.SUB_NODE,
@@ -144,29 +147,32 @@ const NeatTrainer = {
         "Profit",
         "Buys",
         "Sells",
-        "WinRate",
+        "Win%",
         "  ",
         "Profit",
         "Buys",
         "Sells",
-        "WinRate",
+        "Win%",
         " ",
         "Name"
       ];
 
+      let sign = value =>
+        Number(value) > 0 ? "+" + Number(value) : Number(value);
+
       const d = genomes.map((g, index) => {
         return [
           g.generation,
-          " Train".charAt(index),
-          (100 * g.stats.profit).toFixed(2) + "%",
+          "Train".charAt(index),
+          sign((100 * g.stats.profit).toFixed(1)) + "%",
           g.stats.buys.toFixed(2),
           g.stats.sells.toFixed(2),
-          g.stats.winRate.toFixed(2),
-          " Test".charAt(index),
-          (100 * g.testStats.profit).toFixed(2) + "%",
+          (100 * g.stats.winRate).toFixed(2),
+          "Test".charAt(index),
+          sign((100 * g.testStats.profit).toFixed(2)) + "%",
           g.testStats.buys.toFixed(2),
           g.testStats.sells.toFixed(2),
-          g.testStats.winRate.toFixed(2),
+          (100 * g.testStats.winRate).toFixed(1),
           " ",
           g.name
         ];
@@ -179,13 +185,15 @@ const NeatTrainer = {
           .split("\n")
           .forEach(Logger.debug);
       } else {
-        Logger.debug(
-          `No candidates discovered in generation ${this.generation}`
-        );
+        Logger.debug(`No candidates in generation ${this.generation}`);
       }
     };
     {
-      dispStats(this.candidatePopulation.filter((_, index) => index < 8));
+      dispStats(
+        this.candidatePopulation
+          // .sort((a,b)=>b.testStats.profit-a.testStats.profit)
+          .filter((_, index) => index < 8)
+      );
       // dispStats( this.parentPopulation
       // .filter((_, index) => index < 3))
     }
@@ -393,17 +401,13 @@ const NeatTrainer = {
         mutationRate: this.neatConfig.mutationRate,
         mutationAmount: this.neatConfig.mutationAmount,
         selection: methods.selection.TOURNAMENT,
-        clear: true
+        clear: true,
+        network: new architect.Random(
+          this.normalisedData.length,
+          1,
+          this.neatConfig.outputSize
+        )
       });
-
-      this.neat.population = this.neat.population.map(
-        m =>
-          new architect.Random(
-            this.normalisedData.length,
-            1,
-            this.neatConfig.outputSize
-          )
-      );
     }
 
     //Split data into 65% train, 5% gap, 30% test
@@ -421,7 +425,7 @@ const NeatTrainer = {
     this.trainDataRaw = this.data.map(array => array.slice(0, trainAmt));
     this.testDataRaw = this.data.map(array => array.slice(trainAmt + gapAmt));
 
-    let testTheData = data => data.every(d => d.every(val => 0 === val));
+    let testTheData = data => !data.every(d => d.every(val => 0 === val));
 
     Logger.debug(testTheData(this.trainDataRaw));
     Logger.debug(testTheData(this.testDataRaw));
