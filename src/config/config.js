@@ -53,23 +53,23 @@ exports.neatConfig = {
   inputs: [
     {
       name: "opens",
-      normFunc: "log2"
+      normFunc: "percentageChangeLog2"
     },
     {
       name: "highs",
-      normFunc: "log2"
+      normFunc: "percentageChangeLog2"
     },
     {
       name: "lows",
-      normFunc: "log2"
+      normFunc: "percentageChangeLog2"
     },
     {
       name: "closes",
-      normFunc: "log2"
+      normFunc: "percentageChangeLog2"
     },
     {
       name: "volumes",
-      normFunc: "log2"
+      normFunc: "percentageChangeLog2"
     }
   ]
 };
