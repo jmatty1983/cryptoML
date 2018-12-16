@@ -8,15 +8,22 @@ setConfig({
 
 import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 
-import Chart from "./pages/Chart";
-import Line from "./pages/Line";
+import Chart from "./components/Chart";
 import Home from "./pages/Home";
+import Genomes from "./pages/Genomes";
+import Import from "./pages/Import";
+import Process from "./pages/Process";
+import GA from "./pages/GA";
 const App = () => (
   <Router>
     <Switch>
       <Route exact path="/" component={Home} />
-      <Route path="/chart/:table/" component={Chart} />
       <Route path="/home" component={Home} />
+      <Route path="/Process" component={Process} />
+      <Route path="/GA" component={GA} />
+      <Route path="/Import" component={Import} />
+      <Route path="/Genomes" component={Genomes} />
+      <Route path="/chart/:table/" component={Chart} />
     </Switch>
   </Router>
 );

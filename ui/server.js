@@ -5,6 +5,7 @@ const path = require("path");
 const webpack = require("webpack");
 const webpackConfig = require("../webpack.config");
 const compiler = webpack(webpackConfig);
+const fs = require("fs");
 
 const DataManager = require("../src/dataManager");
 
@@ -31,6 +32,59 @@ app.get("/chart/json/:table", (req, res) => {
   );
   res.setHeader("Content-Type", "application/json");
   res.json(candles);
+});
+
+app.get("/api/genome/:genome", (req, res) => {
+  const genomeDir = "./genomes/";
+  const genome = req.params.genome;
+  const genomeSplit = genome.split("_");
+  console.log(genomeSplit[0]);
+  const genomeSplitDir = genomeSplit[0].concat("/");
+  const finalDir = genomeDir.concat(genomeSplitDir);
+  const finalName = finalDir.concat(genome);
+  console.log(finalName);
+  function readJSONFile(filename, callback) {
+    fs.readFile(filename, function(err, data) {
+      if (err) {
+        callback(err);
+        return;
+      }
+      try {
+        callback(null, JSON.parse(data));
+      } catch (exception) {
+        callback(exception);
+      }
+    });
+  }
+
+  readJSONFile(finalName, function(err, json) {
+    if (err) {
+      throw err;
+    }
+    console.log(json);
+    res.setHeader("Content-Type", "application/json");
+    res.json(json);
+  });
+});
+
+app.get("/api/genomes/", (req, res) => {
+  const genomeDir = "./genomes/";
+
+  const walkSync = function(dir, filelist) {
+    files = fs.readdirSync(dir);
+    filelist = filelist || [];
+    files.forEach(function(file) {
+      if (fs.statSync(path.join(dir, file)).isDirectory()) {
+        filelist = walkSync(path.join(dir, file), filelist);
+      } else {
+        filelist.push(file);
+      }
+    });
+    return filelist;
+  };
+
+  res.setHeader("Content-Type", "application/json");
+  res.json(walkSync(genomeDir));
 });
 
 //none of this is necessary

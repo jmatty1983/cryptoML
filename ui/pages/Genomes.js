@@ -6,7 +6,7 @@ export default () => (
   <Layout>
     <div>
       <Typography variant="h4" gutterBottom>
-        Home
+        Genomes
       </Typography>
     </div>
   </Layout>
