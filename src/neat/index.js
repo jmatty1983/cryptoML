@@ -11,7 +11,11 @@ const noveltySearch = require("./noveltySearch");
 const phonetic = require("phonetic");
 const table = require("table");
 
-const { percentageChangeLog2 } = require("./normFuncs").percentChange;
+const normaliseFunctions = {
+  percentageChangeLog2: require("./normFuncs").percentChange
+    .percentageChangeLog2
+};
+
 const ArrayUtils = require("../lib/array");
 const {
   traderConfig,
@@ -312,6 +316,35 @@ const NeatTrainer = {
     this.parentPopulation = this.neat.population;
   },
 
+  getNormalisedData: function() {
+    //A little extra gymnastics because the candle data is an array of arrays. I considered
+    //changing it to an object like {opens: [...], highs: [...]....} but the trade off is
+    //the loss of js array functions like map, reduce etc.. without munging up the data more.
+    //In the end I think this is actually cleaner even though it's not exactly clean.
+    const dataToIndex = {
+      opens: 0,
+      highs: 1,
+      lows: 2,
+      closes: 3,
+      volumes: 4,
+      startTime: 5
+    };
+
+    //This only works for norm funcs that don't need additional data stored at the moment.
+    //High Low for example needs the min and max that was used to normalise the data. I need
+    //to workout how I would want to store that and save it for later in an extendable way.
+    const normalisedCandleData = this.neatConfig.inputs.map(
+      ({ name, normFunc }) =>
+        normaliseFunctions[normFunc](this.data[dataToIndex[name]])
+    );
+    const normalisedIndicatorData = this.data.slice(6).map((array, index) => {
+      const { normFunc } = indicatorConfig[index];
+      return normaliseFunctions[normFunc](array);
+    });
+
+    return [...normalisedCandleData, ...normalisedIndicatorData];
+  },
+
   train: async function() {
     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
     this.neat.population.forEach((genome, i) => {
@@ -384,10 +417,7 @@ const NeatTrainer = {
 
     // this.data = this.data.map( lane => lane.slice(0,lane.length>>2) )
 
-    this.normalisedData = this.data
-      .filter((_, index) => index !== 5)
-      .filter((_, index) => [1, 2].some(a => a === index))
-      .map(percentageChangeLog2);
+    this.normalisedData = this.getNormalisedData();
 
     if (this.normalisedData.length) {
       Logger.debug(

@@ -170,10 +170,8 @@ const DataManager = {
       ArrayUtils.getProp("startTime", candles)
     ];
 
-    indicators.forEach(indicator =>
-      candleArrays.push(
-        Indicators[indicator.name](...indicator.params, candleArrays)
-      )
+    indicators.forEach(({ name, params }) =>
+      candleArrays.push(Indicators[name](...params, candleArrays))
     );
 
     //When using different indicators it can take a few candles until they're able to output values.
