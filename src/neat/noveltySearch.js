@@ -6,7 +6,7 @@ const assert = require("assert");
 // see https://en.wikipedia.org/wiki/Minkowski_distance
 
 function minkowskiDistance(a, b, p = 2) {
-  assert(a.length === b.length);
+  // assert(a.length === b.length);
   p = Math.max(p, Number.EPSILON);
   return Math.pow(
     a
@@ -21,18 +21,17 @@ function minkowskiDistance(a, b, p = 2) {
 // opts.p - minkowski distance power
 
 function noveltySearch(objectives, archive = [], opts = {}) {
-  assert(
-    ![...objectives, ...archive].some(array => array.some(item => isNaN(item)))
-  );
+  const collated = [...objectives, ...archive];
+
+  assert(!collated.some(array => array.some(item => isNaN(item))));
+  assert(!collated.some(array => array.length !== collated[0].length));
 
   const kNN = opts.kNN || 15;
   const p = opts.p || 2;
 
-  const collate = [...objectives, ...archive];
-
   return objectives.map(
     (e, i) =>
-      collate
+      collated
         .map(f => minkowskiDistance(e, f, p))
         .sort((a, b) => a - b)
         .slice(0, kNN)

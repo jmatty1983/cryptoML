@@ -22,7 +22,7 @@ exports.neatConfig = {
   // novelty search related
   noveltySearchDistanceOrder: 1.8,
   noveltySearchAddRandom: 4,
-  noveltySearchAddFittest: 4,
+  noveltySearchAddFittest: 0,
   noveltySearchObjectives: [
     "winRate",
     "exposure",
@@ -45,9 +45,9 @@ exports.neatConfig = {
     "R",
     "novelty",
     "winRate",
-    "EV",
-    "buys",
-    "sells"
+    "EV"
+    // "buys",
+    // "sells"
   ],
   //just a place holder for now. Will allow configuring which candle inputs to feed the network
   inputs: [
@@ -86,11 +86,13 @@ exports.indicatorConfig = [
 
 exports.traderConfig = {
   //Threshold for network signal output to be interpreted as going long
-  longThresh: (0 * 1) / 32,
+  longThresh: 1 / 32,
   //Threshold for network signal output to be interpreted as going short
   shortThresh: 0,
   //Minimum positions size change required before placing an order
   positionChangeThresh: 0.05,
+  minPositionSize: 0.05,
+  maxPositionSize: 1.0,
   //Fees and slippage used for calculating pnl
   fees: 0.001,
   slippage: 0.002,

@@ -145,13 +145,11 @@ const NeatTrainer = {
         "Gen " + this.generation,
         "  ",
         "Profit",
-        "Buys",
-        "Sells",
+        "RTs",
         "Win%",
         "  ",
         "Profit",
-        "Buys",
-        "Sells",
+        "RTs",
         "Win%",
         " ",
         "Name"
@@ -165,13 +163,11 @@ const NeatTrainer = {
           g.generation,
           "Train".charAt(index),
           sign((100 * g.stats.profit).toFixed(1)) + "%",
-          g.stats.buys.toFixed(2),
-          g.stats.sells.toFixed(2),
+          g.stats.RTs.toFixed(2),
           (100 * g.stats.winRate).toFixed(2),
           "Test".charAt(index),
           sign((100 * g.testStats.profit).toFixed(2)) + "%",
-          g.testStats.buys.toFixed(2),
-          g.testStats.sells.toFixed(2),
+          g.testStats.RTs.toFixed(2),
           (100 * g.testStats.winRate).toFixed(1),
           " ",
           g.name
@@ -185,17 +181,15 @@ const NeatTrainer = {
           .split("\n")
           .forEach(Logger.debug);
       } else {
-        Logger.debug(`No candidates in generation ${this.generation}`);
+        Logger.debug(`No candidates found in generation ${this.generation}`);
       }
     };
     {
-      dispStats(
-        this.candidatePopulation
-          // .sort((a,b)=>b.testStats.profit-a.testStats.profit)
-          .filter((_, index) => index < 8)
-      );
-      // dispStats( this.parentPopulation
-      // .filter((_, index) => index < 3))
+      dispStats(this.candidatePopulation.filter((_, index) => index < 8));
+      if (!this.candidatePopulation.length) {
+        Logger.debug("Meanwhile in general population");
+        dispStats(this.parentPopulation.filter((_, index) => index < 8));
+      }
     }
   },
 
@@ -258,7 +252,7 @@ const NeatTrainer = {
     this.candidatePopulation.length = this.neatConfig.populationSize;
 
     this.candidatePopulation = this.candidatePopulation.filter(
-      genome => genome.stats.profit > 0 && genome.testStats.profit > 0
+      genome => genome.stats.OK == true && genome.testStats.OK == true
     );
 
     // perform novelty search & sorting
@@ -290,7 +284,15 @@ const NeatTrainer = {
 
     const toSort = this.neat.population.map(genome => genome.sortingObjectives);
     GBOS(toSort).forEach((rank, index) => {
-      this.neat.population[index].score = -rank;
+      this.neat.population[index].score =
+        this.neat.population[index].stats.RTs > 0 &&
+        this.neat.population[index].testStats.RTs > 0
+          ? -rank
+          : -Infinity;
+
+      // if( this.neat.population[index].score === -Infinity )
+      // Logger.debug(`${index} sucks`)
+
       this.neat.population[index].rank = rank;
     });
 
@@ -408,6 +410,17 @@ const NeatTrainer = {
           this.neatConfig.outputSize
         )
       });
+
+      this.neat.population.forEach(
+        genome =>
+          (genome = new architect.Random(
+            this.normalisedData.length,
+            1,
+            this.neatConfig.outputSize
+          ))
+      );
+
+      this.neat.mutate();
     }
 
     //Split data into 65% train, 5% gap, 30% test
@@ -427,11 +440,15 @@ const NeatTrainer = {
 
     let testTheData = data => !data.every(d => d.every(val => 0 === val));
 
-    Logger.debug(testTheData(this.trainDataRaw));
-    Logger.debug(testTheData(this.testDataRaw));
+    const testResult =
+      testTheData(this.trainDataRaw) &&
+      testTheData(this.testDataRaw) &&
+      testTheData(this.trainData) &&
+      testTheData(this.testData)
+        ? "OK"
+        : "Not OK";
 
-    Logger.debug(testTheData(this.trainData));
-    Logger.debug(testTheData(this.testData));
+    Logger.debug(`Data sanity check: ${testResult}`);
 
     const workerData = {
       trainDataRaw: this.trainDataRaw,

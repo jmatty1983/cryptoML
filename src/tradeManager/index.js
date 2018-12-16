@@ -9,6 +9,8 @@ const TradeManager = {
       longThresh,
       shortThresh,
       positionChangeThresh,
+      minPositionSize,
+      maxPositionSize,
       fees,
       slippage,
       allowShorts
@@ -29,6 +31,8 @@ const TradeManager = {
     this.longThresh = longThresh;
     this.shortThresh = shortThresh;
     this.positionChangeThresh = positionChangeThresh;
+    this.minPositionSize = minPositionSize;
+    this.maxPositionSize = maxPositionSize;
     this.fees = fees;
     this.slippage = slippage;
     this.allowShorts = allowShorts;
@@ -39,8 +43,6 @@ const TradeManager = {
 
     this.buys = 0;
     this.sells = 0;
-
-    this.posTrigger = false;
 
     this.tradesLost = 0;
     this.tradesWon = 0;
@@ -57,6 +59,8 @@ const TradeManager = {
 
     this.minQuantity = this.stepSize = 0.1; // BTC 0.00000100; // XRP 0.10000000
 
+    this.positions = [];
+
     //More notes for future me. It may be worth experimenting with inputting current position
     //information for the model.
     this.position = {
@@ -66,15 +70,18 @@ const TradeManager = {
     };
   },
 
-  doLong: function(changeAmt, [, , , close]) {
+  doLong: function(signal, amount, [, , , close]) {
     try {
       // changeAmt = changeAmt>0?changeAmt:changeAmt*2
 
-      changeAmt = Math.max(-1, Math.min(1, changeAmt));
+      // let changeAmt = Math.max(-1, Math.min(1, amount)) * this.maxPositionSize
+      let changeAmt =
+        this.minPositionSize +
+        (this.maxPositionSize - this.minPositionSize) *
+          (Math.tanh(amount) * 0.5 + 0.5);
 
-      // changeAmt = Math.tanh(changeAmt)
-
-      if (changeAmt > 0 && this.currency > 0) {
+      // changeAmt = 0.2
+      if (signal > 0 && this.currency > 0 && changeAmt > 0) {
         let change = this.currency * changeAmt;
 
         let quantity = change / close;
@@ -83,7 +90,7 @@ const TradeManager = {
         change = quantity * close;
         while (change > this.currency) {
           quantity -= this.minQuantity;
-          change = quantity * close;
+          change -= this.minQuantity * close;
         }
         quantity *= 1 - (this.fees + this.slippage);
 
@@ -94,15 +101,17 @@ const TradeManager = {
           this.asset += quantity;
           this.buys++;
 
-          this.currentValue = this.getValue(close);
-
-          //          this.avgExpDepth += this.asset / this.currentValue
+          this.positions.push({
+            quantity: quantity,
+            investment: change,
+            price: close
+          });
         }
-      } else if (changeAmt < 0 && this.asset > 0) {
-        changeAmt = -changeAmt;
-        {
-          let change = this.asset * changeAmt;
-          change = this.stepSize * Math.floor(change / this.stepSize);
+      } else if (signal < 0 && this.asset > 0) {
+        if (this.positions.length) {
+          const position = this.positions.shift();
+          let change = position.quantity;
+
           change = Math.max(change, this.minQuantity);
 
           if (change >= this.minQuantity) {
@@ -110,22 +119,10 @@ const TradeManager = {
 
             this.asset -= change;
 
-            /*          if (this.asset < this.minQuantity) {
-              change += this.asset;
-              this.asset = 0;
-              changeAmt = 1;
-            }*/
-
-            this.avgPosRem += changeAmt;
-
             const sellVal = change * (1 - (this.fees + this.slippage)) * close;
             this.currency += sellVal;
 
-            const value = this.getValue(close);
-
-            // this.avgExpDepth += this.asset / value
-
-            const deltaValue = value - this.currentValue;
+            const deltaValue = sellVal / position.investment - 1;
             if (deltaValue >= 0) {
               this.avgWin += deltaValue;
               this.tradesWon++;
@@ -137,12 +134,6 @@ const TradeManager = {
             this.sells++;
           }
         }
-        // this.currentValue = Value;
-      }
-
-      if (this.asset > 0) {
-        this.avgExpDepth += this.asset / this.getValue(close);
-        this.exposure++;
       }
 
       if (this.currency < 0 || this.asset < 0) {
@@ -178,11 +169,13 @@ const TradeManager = {
     const signal =
       Math.max(0, Math.abs(longSig) - this.longThresh) * Math.sign(longSig);
 
-    if (!this.posTrigger && signal) {
-      this.doLong(amount, candle);
-      // this.posTrigger = true;
-    } else if (this.posTrigger && !signal) {
-      this.posTrigger = false;
+    if (signal) {
+      this.doLong(signal, amount, candle);
+    }
+
+    if (this.asset > 0) {
+      this.avgExpDepth += this.asset / this.getValue(candle[3]);
+      this.exposure++;
     }
 
     this.candleCount++;
@@ -203,15 +196,10 @@ const TradeManager = {
       this.handleCandle(candle, output);
     });
 
-    // this.doLong(-1, this.data[this.data.length - 1]);
-
-    const value = this.getValue(this.closes[this.closes.length - 1]);
-
-    // this.tradesWon = Math.max(Number.EPSILON,this.tradesWon)
-    // this.tradesLost = Math.max(Number.EPSILON,this.tradesLost)
-
     let safeDiv = (num, denom) =>
       Math.abs(denom) <= Number.EPSILON ? 0 : num / denom;
+
+    const value = this.getValue(this.closes[this.closes.length - 1]);
 
     this.avgWin = safeDiv(this.avgWin, this.tradesWon);
     this.avgLoss = safeDiv(this.avgLoss, this.tradesLost);
@@ -224,6 +212,7 @@ const TradeManager = {
     const winRate = safeDiv(this.tradesWon, this.tradesWon + this.tradesLost);
 
     const EV = winRate * this.avgWin + (1 - winRate) * this.avgLoss;
+    const R = safeDiv(this.avgWin, -this.avgLoss);
 
     this.avgExpDepth = safeDiv(this.avgExpDepth, this.exposure);
 
@@ -247,13 +236,15 @@ const TradeManager = {
 
       EV: EV,
 
+      RTs: (this.buys + this.sells) / 2,
+
       wins: this.tradesWon / timeSpanInMonths,
       losses: this.tradesLost / timeSpanInMonths,
 
       avgPosAdd: safeDiv(this.avgPosAdd, this.buys),
       avgPosRem: safeDiv(this.avgPosRem, this.sells),
 
-      R: safeDiv(this.avgWin, -this.avgLoss),
+      R: R,
       winRate: winRate,
 
       exposure: this.exposure / this.candleCount,
@@ -264,12 +255,7 @@ const TradeManager = {
       genomeSelfConnections: this.genome.selfconns.length / 10,
 
       OK:
-        this.buys > 0 &&
-        this.sells > 0 &&
-        this.wins > 0 &&
-        this.losses > 0 &&
-        this.R > 1 &&
-        value > 1
+        profit > 0 && this.tradesWon > 0 && this.tradesLost > 0 && R > 1 && true
     };
   }
 };
