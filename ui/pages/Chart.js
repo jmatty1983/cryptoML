@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Layout from "../components/Layout";
 import { ema } from "../../src/dataManager/indicators";
 
 const Chart = props => {
@@ -160,7 +161,7 @@ const Chart = props => {
 
   const display = loading ? <div>Loading...</div> : page;
 
-  return <>{display}</>;
+  return <Layout>{display}</Layout>;
 };
 
 export default Chart;

@@ -6,16 +6,18 @@ setConfig({
   pureRender: true // RHL will not change render method
 });
 
-import { BrowserRouter as Router, Route } from "react-router-dom";
+import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 
 import Chart from "./pages/Chart";
 import Line from "./pages/Line";
-import Indexx from "./pages/Index";
+import Home from "./pages/Home";
 const App = () => (
   <Router>
-    <Route exact path="/" component={Indexx} />
-    <Route path="/chart/:table/" component={Chart} />
-    <Route path="/home" component={Indexx} />
+    <Switch>
+      <Route exact path="/" component={Home} />
+      <Route path="/chart/:table/" component={Chart} />
+      <Route path="/home" component={Home} />
+    </Switch>
   </Router>
 );
 
