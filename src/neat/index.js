@@ -3,8 +3,12 @@ const { Neat, methods, architect } = require("neataptic");
 const os = require("os");
 const { Worker, MessageChannel } = require("worker_threads");
 
-const { percentageChangeLog2 } = require("./normFuncs").percentChange;
-const ArrayUtils = require("../lib/array");
+const normaliseFunctions = {
+  percentageChangeLog2: require("./normFuncs").percentChange
+    .percentageChangeLog2
+};
+
+const { chunk, flatten } = require("../lib/array");
 const {
   traderConfig,
   indicatorConfig,
@@ -74,10 +78,38 @@ const NeatTrainer = {
     return (currency / startCurrency) * 100;
   },
 
+  getNormalisedData: function() {
+    //A little extra gymnastics because the candle data is an array of arrays. I considered
+    //changing it to an object like {opens: [...], highs: [...]....} but the trade off is
+    //the loss of js array functions like map, reduce etc.. without munging up the data more.
+    //In the end I think this is actually cleaner even though it's not exactly clean.
+    const dataToIndex = {
+      opens: 0,
+      highs: 1,
+      lows: 2,
+      closes: 3,
+      volumes: 4
+    };
+
+    //This only works for norm funcs that don't need additional data stored at the moment.
+    //High Low for example needs the min and max that was used to normalise the data. I need
+    //to workout how I would want to store that and save it for later in an extendable way.
+    const normalisedCandleData = this.neatConfig.inputs.map(
+      ({ name, normFunc }) =>
+        normaliseFunctions[normFunc](this.data[dataToIndex[name]])
+    );
+    const normalisedIndicatorData = this.data.slice(5).map((array, index) => {
+      const { normFunc } = indicatorConfig[index];
+      return normaliseFunctions[normFunc](array);
+    });
+
+    return [...normalisedCandleData, ...normalisedIndicatorData];
+  },
+
   train: async function() {
     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
     this.neat.population.forEach((genome, i) => (genome.id = i));
-    const chunkedPop = ArrayUtils.chunk(
+    const chunkedPop = chunk(
       this.neat.population,
       Math.ceil(this.neat.population.length / this.workers.length)
     );
@@ -104,7 +136,7 @@ const NeatTrainer = {
       });
     });
 
-    let results = ArrayUtils.flatten(await Promise.all(work));
+    const results = flatten(await Promise.all(work));
     results.forEach(({ trainStats, testStats, id }) => {
       this.neat.population[id].stats = trainStats;
       this.neat.population[id].score = this.getFitness(trainStats);
@@ -135,8 +167,7 @@ const NeatTrainer = {
   start: async function() {
     Logger.info("Starting genome search");
 
-    this.normalisedData = this.data.map(array => percentageChangeLog2(array));
-
+    this.normalisedData = this.getNormalisedData();
     //Split data into 60% train, 5% gap, 35% test
     const trainAmt = Math.trunc(this.normalisedData[0].length * 0.6);
     const gapAmt = Math.trunc(this.normalisedData[0].length * 0.05);
