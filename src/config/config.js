@@ -13,8 +13,8 @@ exports.neatConfig = {
 
   discardDuplicateGenomes: false,
 
-  // 1 - Long Buy Sell & Pos
-  // 2 - Long+Short Buy Sell & Pos
+  // 2 - Long Buy Sell, Amount
+  //
   outputSize: 2,
   // how do we select candidates for paper/live?
   // note: see what tradeManager returns
@@ -91,6 +91,7 @@ exports.traderConfig = {
   shortThresh: 0,
   //Minimum positions size change required before placing an order
   positionChangeThresh: 0.05,
+  // position size limits
   minPositionSize: 0.05,
   maxPositionSize: 1.0,
   //Fees and slippage used for calculating pnl
