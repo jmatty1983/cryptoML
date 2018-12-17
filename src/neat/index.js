@@ -11,6 +11,8 @@ const noveltySearch = require("./noveltySearch");
 const phonetic = require("phonetic");
 const table = require("table");
 
+const crypto = require("crypto");
+
 const normaliseFunctions = {
   percentageChangeLog2: require("./normFuncs").percentChange
     .percentageChangeLog2
@@ -94,19 +96,33 @@ const NeatTrainer = {
       : [];
   },
 
+  mutate: function(genome) {
+    if (Math.random() <= this.neat.mutationRate) {
+      for (var j = 0; j < this.neat.mutationAmount; j++) {
+        var mutationMethod = this.neat.selectMutationMethod(genome);
+        genome.mutate(mutationMethod);
+      }
+    }
+    return genome;
+  },
+
   breed: function() {
     this.neat.sort();
 
     let getUniqueOffspring = () => {
       while (true) {
-        const offspring = this.neat.getOffspring();
+        const offspring = this.mutate(this.neat.getOffspring());
+        offspring.hash = parseInt(
+          crypto
+            .createHash("md5")
+            .update(JSON.stringify(offspring.toJSON()))
+            .digest("hex"),
+          16
+        );
         if (
-          !this.parentPopulation.some(
-            genome =>
-              JSON.stringify(genome.toJSON()) ===
-              JSON.stringify(offspring.toJSON())
-          )
+          !this.parentPopulation.some(genome => offspring.hash === genome.hash)
         ) {
+          // console.log(offspring.hash)
           return offspring;
         }
       }
@@ -116,17 +132,11 @@ const NeatTrainer = {
       .fill(null)
       .map(getUniqueOffspring);
 
-    this.neat.mutate();
-
     if (this.neatConfig.discardDuplicateGenomes) {
       this.neat.population = this.neat.population.filter((genome1, index) =>
         this.neat.population.some(
           (genome2, index2) =>
-            !(
-              index2 > index &&
-              JSON.stringify(genome1.toJSON()) ===
-                JSON.stringify(genome2.toJSON())
-            )
+            !(index2 > index && genome1.hash === genome2.hash)
         )
       );
     }
@@ -239,9 +249,7 @@ const NeatTrainer = {
       ...this.candidatePopulation,
       ...this.neat.population.filter(genome1 => {
         return !this.candidatePopulation.some(
-          genome2 =>
-            JSON.stringify(genome1.toJSON()) ===
-            JSON.stringify(genome2.toJSON())
+          genome2 => genome1.hash === genome2.hash
         );
       })
     ];
@@ -478,7 +486,7 @@ const NeatTrainer = {
 
     let testTheData = data => !data.every(d => d.every(val => 0 === val));
 
-    const testResult = [
+    const sanityTestResult = [
       this.trainDataRaw,
       this.testDataRaw,
       this.trainData,
@@ -487,7 +495,7 @@ const NeatTrainer = {
       ? "OK"
       : "Not OK";
 
-    Logger.debug(`Data sanity check: ${testResult}`);
+    Logger.debug(`Data sanity check: ${sanityTestResult}`);
 
     const workerData = {
       trainDataRaw: this.trainDataRaw,
