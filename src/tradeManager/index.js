@@ -57,7 +57,7 @@ const TradeManager = {
     this.exposure = 0;
     this.avgExpDepth = 0;
 
-    this.minQuantity = this.stepSize = 0.1; // BTC 0.00000100; // XRP 0.10000000
+    this.minQuantity = this.stepSize = 0.000001; // BTC 0.00000100; // XRP 0.10000000
 
     this.positions = [];
 
@@ -111,8 +111,6 @@ const TradeManager = {
         if (this.positions.length) {
           const position = this.positions.shift();
           let change = position.quantity;
-
-          change = Math.max(change, this.minQuantity);
 
           if (change >= this.minQuantity) {
             change = Math.min(this.asset, change);
@@ -192,7 +190,6 @@ const TradeManager = {
         []
       );
       const output = this.genome.noTraceActivate(candleInput);
-      // if( Math.random()<0.1) Logger.debug(output)
       this.handleCandle(candle, output);
     });
 
@@ -254,8 +251,7 @@ const TradeManager = {
       genomeGates: this.genome.gates.length / 10,
       genomeSelfConnections: this.genome.selfconns.length / 10,
 
-      OK:
-        profit > 0 && this.tradesWon > 0 && this.tradesLost > 0 && R > 1 && true
+      OK: profit > 0 && this.tradesWon > 0 && this.tradesLost > 0 && R > 1
     };
   }
 };

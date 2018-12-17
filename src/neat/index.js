@@ -98,17 +98,18 @@ const NeatTrainer = {
     this.neat.sort();
 
     let getUniqueOffspring = () => {
-      let offspring = null;
-      do {
-        offspring = this.neat.getOffspring();
-      } while (
-        this.parentPopulation.some(
-          genome =>
-            JSON.stringify(genome.toJSON()) ===
-            JSON.stringify(offspring.toJSON())
-        )
-      );
-      return offspring;
+      while (true) {
+        const offspring = this.neat.getOffspring();
+        if (
+          !this.parentPopulation.some(
+            genome =>
+              JSON.stringify(genome.toJSON()) ===
+              JSON.stringify(offspring.toJSON())
+          )
+        ) {
+          return offspring;
+        }
+      }
     };
 
     this.neat.population = new Array(this.neat.popsize)
@@ -232,6 +233,7 @@ const NeatTrainer = {
     });
 
     // process candidate population
+    // TODO: would prefer hash comparisons of genomes instead
 
     this.candidatePopulation = [
       ...this.candidatePopulation,
@@ -260,6 +262,7 @@ const NeatTrainer = {
     );
 
     // perform novelty search & sorting
+    // merging parent population with current generation population guarantees elitism
 
     this.neat.population = [...this.neat.population, ...this.parentPopulation];
 
@@ -293,9 +296,6 @@ const NeatTrainer = {
         this.neat.population[index].testStats.RTs > 0
           ? -rank
           : -Infinity;
-
-      // if( this.neat.population[index].score === -Infinity )
-      // Logger.debug(`${index} sucks`)
 
       this.neat.population[index].rank = rank;
     });
@@ -345,6 +345,14 @@ const NeatTrainer = {
     });
 
     return [...normalisedCandleData, ...normalisedIndicatorData];
+  },
+
+  getHistogram: function() {
+    const normalisedInput = ArrayUtils.flatten(
+      [0, 1, 2, 3].map(index =>
+        normaliseFunctions["percentageChangeLog2"](this.data[index])
+      )
+    );
   },
 
   train: async function() {
@@ -470,13 +478,14 @@ const NeatTrainer = {
 
     let testTheData = data => !data.every(d => d.every(val => 0 === val));
 
-    const testResult =
-      testTheData(this.trainDataRaw) &&
-      testTheData(this.testDataRaw) &&
-      testTheData(this.trainData) &&
-      testTheData(this.testData)
-        ? "OK"
-        : "Not OK";
+    const testResult = [
+      this.trainDataRaw,
+      this.testDataRaw,
+      this.trainData,
+      this.testData
+    ].every(testTheData)
+      ? "OK"
+      : "Not OK";
 
     Logger.debug(`Data sanity check: ${testResult}`);
 
