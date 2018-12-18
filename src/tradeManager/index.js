@@ -60,6 +60,7 @@ const TradeManager = {
     this.minQuantity = this.stepSize = 0.000001; // BTC 0.00000100; // XRP 0.10000000
 
     this.positions = [];
+    this.trades = [];
 
     //More notes for future me. It may be worth experimenting with inputting current position
     //information for the model.

@@ -47,15 +47,6 @@ const DataManager = {
           throw "Invalid time duration";
         }
       case "volume":
-        const totalVolume = rows.reduce(
-          (acc, candle) => acc + candle.quantity,
-          0
-        );
-        const timeSpan =
-          (rows[rows.length - 1].timestamp - rows[0].timestamp) /
-          (1000 * 60 * 60 * 24);
-        const volumePerDay = totalVolume / timeSpan;
-        Logger.debug(`Daily volume: ${volumePerDay}`);
       case "currency":
         const toChunks = this.makeToChunksReducer(type, length);
         const chunks = rows.reduce(toChunks, [[]]);

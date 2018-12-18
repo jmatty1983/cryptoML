@@ -13,6 +13,8 @@ const table = require("table");
 
 const crypto = require("crypto");
 
+const histc = require("histc");
+
 const normaliseFunctions = {
   percentageChangeLog2: require("./normFuncs").percentChange
     .percentageChangeLog2
@@ -122,7 +124,6 @@ const NeatTrainer = {
         if (
           !this.parentPopulation.some(genome => offspring.hash === genome.hash)
         ) {
-          // console.log(offspring.hash)
           return offspring;
         }
       }
@@ -355,14 +356,6 @@ const NeatTrainer = {
     return [...normalisedCandleData, ...normalisedIndicatorData];
   },
 
-  getHistogram: function() {
-    const normalisedInput = ArrayUtils.flatten(
-      [0, 1, 2, 3].map(index =>
-        normaliseFunctions["percentageChangeLog2"](this.data[index])
-      )
-    );
-  },
-
   train: async function() {
     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
     this.neat.population.forEach((genome, i) => {
@@ -430,11 +423,54 @@ const NeatTrainer = {
     });
   },
 
+  histogram: function() {
+    const data = ArrayUtils.flatten(
+      [0, 1, 2, 3].map(index =>
+        normaliseFunctions["percentageChangeLog2"](this.data[index])
+      )
+    );
+
+    // const min = data.reduce((acc,val) => Math.min(acc,val), Infinity)
+    // const max = data.reduce((acc,val) => Math.max(acc,val), -Infinity)
+
+    const min = -0.02;
+    const max = 0.02;
+
+    const width = 20;
+    const height = 20;
+
+    const edges = new Array(width)
+      .fill(0)
+      .map((_, index) => min + (index * (max - min)) / width);
+
+    const histogram = histc(data, edges);
+    const maxCount = histogram.reduce(
+      (acc, val) => Math.max(acc, val),
+      -Infinity
+    );
+
+    Logger.debug(
+      `Histogram samples: ${data.length}, display range: ]${min}...${max}[`
+    );
+    Array(histogram.length - 1)
+      .fill(0)
+      .forEach((_, v) => {
+        const edge = edges[v].toFixed(2);
+        const histoString = Array(
+          Math.round((width * histogram[v + 1]) / maxCount)
+        )
+          .fill("#")
+          .reduce((acc, val) => acc + val, []);
+        Logger.debug(`${histoString}`);
+      });
+  },
+
   start: async function() {
     Logger.info("Starting genome search");
 
     // this.data = this.data.map( lane => lane.slice(0,lane.length>>2) )
 
+    this.histogram();
     this.normalisedData = this.getNormalisedData();
 
     if (this.normalisedData.length) {
