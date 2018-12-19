@@ -1,6 +1,6 @@
 const db = require("better-sqlite3");
 
-const { chunk, getProp } = require("../lib/array");
+const ArrayUtils = require("../lib/array");
 const Indicators = require("./indicators");
 const Logger = require("../logger");
 
@@ -34,7 +34,7 @@ const DataManager = {
   buildCandles: function({ type, length, rows }) {
     switch (type) {
       case "tick":
-        const tickChunks = chunk(rows, length);
+        const tickChunks = ArrayUtils.chunk(rows, length);
         const tickRemainder =
           tickChunks[tickChunks.length - 1].length < length
             ? tickChunks.pop()
@@ -153,11 +153,12 @@ const DataManager = {
       `[${pair.toUpperCase()}_${type.toLowerCase()}_${length.toLowerCase()}]`
     );
     let candleArrays = [
-      getProp("open", candles),
-      getProp("high", candles),
-      getProp("low", candles),
-      getProp("close", candles),
-      getProp("volume", candles)
+      ArrayUtils.getProp("open", candles),
+      ArrayUtils.getProp("high", candles),
+      ArrayUtils.getProp("low", candles),
+      ArrayUtils.getProp("close", candles),
+      ArrayUtils.getProp("volume", candles),
+      ArrayUtils.getProp("startTime", candles)
     ];
 
     indicators.forEach(({ name, params }) =>
