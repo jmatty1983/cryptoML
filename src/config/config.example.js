@@ -12,23 +12,23 @@ exports.neatConfig = {
   inputs: [
     {
       name: "opens",
-      normFunc: "log2"
+      normFunc: "percentageChangeLog2"
     },
     {
       name: "highs",
-      normFunc: "log2"
+      normFunc: "percentageChangeLog2"
     },
     {
       name: "lows",
-      normFunc: "log2"
+      normFunc: "percentageChangeLog2"
     },
     {
       name: "closes",
-      normFunc: "log2"
+      normFunc: "percentageChangeLog2"
     },
     {
       name: "volumes",
-      normFunc: "log2"
+      normFunc: "percentageChangeLog2"
     }
   ]
 };
@@ -39,7 +39,7 @@ exports.indicatorConfig = [
     params: [9],
     //just a place holder for now. Will allow different normalising functions to be applied
     //to different indicators
-    normFunc: "log2"
+    normFunc: "percentageChangeLog2"
   }
 ];
 
