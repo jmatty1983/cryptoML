@@ -34,7 +34,45 @@ app.get("/chart/json/:table", (req, res) => {
   res.json(candles);
 });
 
-app.get("/api/genome/:genome", (req, res) => {
+app.get("/api/genomes/", (req, res) => {
+  const genomeDir = "./genomes/";
+  const genomesFinal = [];
+  const genomeList = [];
+
+  //DIRWALK w/ SUB DIRS.
+  const walkSync = function(dir, filelist) {
+    files = fs.readdirSync(dir);
+    filelist = filelist || [];
+    files.forEach(function(file) {
+      if (fs.statSync(path.join(dir, file)).isDirectory()) {
+        filelist = walkSync(path.join(dir, file), filelist);
+      } else {
+        filelist.push(file);
+        //genomeList.push(file);
+      }
+    });
+    return filelist;
+  };
+
+  //RETURN ARRAY OF GENOME NAMES IN ALL SUBDIRS
+  walkSync(genomeDir, genomeList);
+
+  //RETURN OBJECT WITH NAME, DATA
+  genomeList.map(genome => {
+    const genomeDir = "./genomes/";
+    const genomeSplit = genome.split("_");
+    const genomeSplitDir = genomeSplit[0].concat("/");
+    const finalDir = genomeDir.concat(genomeSplitDir);
+    const finalName = finalDir.concat(genome);
+    const genomeData = JSON.parse(fs.readFileSync(finalName, "utf8"));
+    //console.log
+    genomesFinal.push({ name: genome, data: genomeData });
+  });
+
+  res.json(genomesFinal);
+});
+
+/*app.get("/api/genome/:genome", (req, res) => {
   const genomeDir = "./genomes/";
   const genome = req.params.genome;
   const genomeSplit = genome.split("_");
@@ -85,7 +123,7 @@ app.get("/api/genomes/", (req, res) => {
 
   res.setHeader("Content-Type", "application/json");
   res.json(walkSync(genomeDir));
-});
+});*/
 
 //none of this is necessary
 //=======

@@ -14,6 +14,7 @@ import Genomes from "./pages/Genomes";
 import Import from "./pages/Import";
 import Process from "./pages/Process";
 import GA from "./pages/GA";
+//import Table from "./components/Table"
 const App = () => (
   <Router>
     <Switch>

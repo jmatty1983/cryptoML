@@ -7,7 +7,7 @@ import styled from "styled-components";
 
 const MenuDiv = styled.div`
   margin: 0;
-  width: 50%;
+  width: 100%;
 `;
 
 export default () => (
@@ -15,6 +15,7 @@ export default () => (
     <AppBar position="static" color="default">
       <MenuDiv>
         <ul>
+          <Button color="inherit">NEATUI</Button>
           <Button color="primary" component={Link} to="/">
             Home
           </Button>
