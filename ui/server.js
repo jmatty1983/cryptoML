@@ -49,7 +49,7 @@ app.get("/api/genomes/", (req, res) => {
   const genomeList = walkSync(genomeDir);
 
   genomeList.map(genome => {
-    const name = `${genomeDir}${genome.split("_")[0]}/${genome}`;
+    const name = `./${genome}`;
     const genomeData = JSON.parse(fs.readFileSync(name, "utf8"));
     genomesFinal.push({ name: genome, data: genomeData });
   });
