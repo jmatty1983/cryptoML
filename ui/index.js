@@ -1,20 +1,22 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import { hot, setConfig } from "react-hot-loader";
+import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 setConfig({
   ignoreSFC: true, // RHL will be __completely__ disabled for SFC
   pureRender: true // RHL will not change render method
 });
 
-import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
-
 import Chart from "./components/Chart";
-import Home from "./pages/Home";
-import Genomes from "./pages/Genomes";
-import Import from "./pages/Import";
-import Process from "./pages/Process";
-import GA from "./pages/GA";
 import Table from "./components/Table";
+
+import GA from "./pages/GA";
+import Genomes from "./pages/Genomes";
+import Home from "./pages/Home";
+import Import from "./pages/Import";
+import PaperTrader from "./pages/PaperTrader";
+import Process from "./pages/Process";
+
 const App = () => (
   <Router>
     <Switch>
@@ -26,6 +28,7 @@ const App = () => (
       <Route path="/Genomes" component={Genomes} />
       <Route path="/chart/:table/" component={Chart} />
       <Route path="/Table" component={Table} />
+      <Route path="/papertrader" component={PaperTrader} />
     </Switch>
   </Router>
 );
