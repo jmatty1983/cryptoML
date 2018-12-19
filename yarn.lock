@@ -1053,6 +1053,10 @@ binary-extensions@^1.0.0:
   version "1.12.0"
   resolved "https://registry.yarnpkg.com/binary-extensions/-/binary-extensions-1.12.0.tgz#c2d780f53d45bba8317a8902d4ceeaf3a6385b14"
 
+binsearch@~0.0.0:
+  version "0.0.0"
+  resolved "https://registry.yarnpkg.com/binsearch/-/binsearch-0.0.0.tgz#3e686c63cf012b7fb030fea716aaba59206dbcc9"
+
 bluebird@^3.5.1:
   version "3.5.3"
   resolved "https://registry.yarnpkg.com/bluebird/-/bluebird-3.5.3.tgz#7d01c6f9616c9a51ab0f8c549a79dfe6ec33efa7"
@@ -2539,6 +2543,12 @@ hash.js@^1.0.0, hash.js@^1.0.3:
 he@1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/he/-/he-1.1.1.tgz#93410fd21b009735151f8868c2f271f3427e23fd"
+
+histc@0.0.0:
+  version "0.0.0"
+  resolved "https://registry.yarnpkg.com/histc/-/histc-0.0.0.tgz#55940642a81527b62228f06c4a3dc9b8face71be"
+  dependencies:
+    binsearch "~0.0.0"
 
 history@^4.7.2:
   version "4.7.2"
