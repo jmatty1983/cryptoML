@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 //import { ema } from "../../src/dataManager/indicators";
 
-const Table = props => {
+const Table = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -15,10 +15,20 @@ const Table = props => {
 
   useEffect(() => {
     setLoading(true);
-    fetchData(table);
+    fetchData();
   }, []);
 
-  const tableData = data.map(({ genome, data }, index) => [genome, data]);
+  function dingdong(foo) {
+    return Object.keys(foo).map(i => foo[i].toString());
+  }
+  //console.log(dingdong(data.trainStats))
+
+  const tableData = data.map(({ name, data }) => [
+    name.toString(),
+    ...dingdong(data.trainStats)
+  ]);
+  console.log(tableData);
+  //const tableData = data.map(({ name, data }, index) => [name, data]);
 
   const drawTable = () => {
     if (!document.getElementById("table_div")) {
@@ -26,7 +36,7 @@ const Table = props => {
     }
 
     //PROCESS ARRAY DATA
-    const TableData = google.visualization.arrayToDataTable(tableData, true);
+    const TableData = google.visualization.arrayToDataTable(tableData);
 
     //CREATE DASHBOARD INSTANCE
     const table = new google.visualization.Table(
@@ -54,4 +64,4 @@ const Table = props => {
   return <Layout>{display}</Layout>;
 };
 
-export default Chart;
+export default Table;

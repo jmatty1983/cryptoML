@@ -14,7 +14,7 @@ import Genomes from "./pages/Genomes";
 import Import from "./pages/Import";
 import Process from "./pages/Process";
 import GA from "./pages/GA";
-//import Table from "./components/Table"
+import Table from "./components/Table";
 const App = () => (
   <Router>
     <Switch>
@@ -25,6 +25,7 @@ const App = () => (
       <Route path="/Import" component={Import} />
       <Route path="/Genomes" component={Genomes} />
       <Route path="/chart/:table/" component={Chart} />
+      <Route path="/Table" component={Table} />
     </Switch>
   </Router>
 );
