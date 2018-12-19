@@ -47,7 +47,7 @@ app.get("/api/genomes/", (req, res) => {
     }, []);
 
   const genomeList = walkSync(genomeDir);
-  console.log(genomeList);
+
   genomeList.map(genome => {
     const name = `./${genome}`;
     const genomeData = JSON.parse(fs.readFileSync(name, "utf8"));
