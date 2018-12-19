@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-const Chart = props => {
+const Line = props => {
   const table = props.match.params.table;
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,46 +17,38 @@ const Chart = props => {
     fetchData(table);
   }, []);
 
-  const candleData = data
-    .map(candle => [
-      candle.id,
-      candle.low,
-      candle.open,
-      candle.close,
-      candle.high,
-      candle.startTime
-    ])
-    .slice(0, 100);
+  const lineData = data.map(x => [x.id, x.close]).slice(0, 2000);
 
   google.charts.load("current", { packages: ["corechart"] });
   google.charts.setOnLoadCallback(drawChart);
 
   function drawChart() {
-    if (!document.getElementById("chart_div")) {
+    if (!document.getElementById("line_div")) {
       return;
     }
-    var data = google.visualization.arrayToDataTable(candleData, true);
+    var data = google.visualization.arrayToDataTable(lineData, true);
 
     var options = {
+      height: 500,
       legend: "none",
-      bar: { groupWidth: "95%" },
       explorer: {
         actions: ["dragToZoom", "rightClickToReset"],
         axis: "horizontal",
-        keepInBounds: true
+        keepInBounds: true,
+        maxZoomIn: 20.0
       }
     };
 
-    var chart = new google.visualization.CandlestickChart(
-      document.getElementById("chart_div")
+    var line = new google.visualization.LineChart(
+      document.getElementById("line_div")
     );
 
-    chart.draw(data, options);
+    line.draw(data, options);
   }
 
-  const display = loading ? <div>Loading...</div> : <div id="chart_div" />;
+  const display = loading ? <div>Loading...</div> : <div id="line_div" />;
 
   return <>{display}</>;
 };
 
-export default Chart;
+export default Line;

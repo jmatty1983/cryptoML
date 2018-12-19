@@ -33,3 +33,7 @@ coverage/
 
 ui/dist/bundle.js
 src/config/config.js
+
+# Lock files are more of pain in the ass than they're worth in this repo
+yarn.lock
+package-lock.json
