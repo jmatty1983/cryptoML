@@ -31,6 +31,9 @@ export default () => (
           <Button color="primary" component={Link} to="/Genomes">
             Genomes
           </Button>
+          <Button color="primary" component={Link} to="/papertrader">
+            Paper Trader
+          </Button>
         </ul>
       </MenuDiv>
     </AppBar>
