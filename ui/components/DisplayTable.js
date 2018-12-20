@@ -8,7 +8,13 @@ import Checkbox from "@material-ui/core/Checkbox";
 
 const DisplayTable = props => {
   const [selectedRows, setSelectedRows] = useState([]);
-  const { headers, data, multiSelect, onSelectChange } = props;
+  const {
+    headers,
+    data,
+    multiSelect,
+    onSelectChange,
+    checkboxColor = "primary"
+  } = props;
 
   const handleSelectAll = (_, checked) => {
     const rows = checked ? data.map((_, i) => i) : [];
@@ -42,6 +48,7 @@ const DisplayTable = props => {
                 return (
                   <TableCell>
                     <Checkbox
+                      color={checkboxColor}
                       indeterminate={
                         selectedRows.length > 0 &&
                         selectedRows.length < data.length
@@ -71,6 +78,7 @@ const DisplayTable = props => {
                 return (
                   <TableCell>
                     <Checkbox
+                      color={checkboxColor}
                       checked={selectedRows.includes(index)}
                       onChange={(_, checked) => handleSelect(checked, index)}
                     />

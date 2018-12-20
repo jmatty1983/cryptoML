@@ -15,6 +15,7 @@ const dbExt = process.env.DB_EXT;
 
 const app = express();
 
+//Middleware for hot module reloading
 app.use(
   require("webpack-dev-middleware")(compiler, {
     noInfo: true,
@@ -24,7 +25,8 @@ app.use(
 app.use(require("webpack-hot-middleware")(compiler));
 app.use(express.static(path.join(__dirname, "./dist")));
 
-app.get("/chart/json/:table", (req, res) => {
+//Route to get candle data for a chart
+app.get("/api/chart/:table", (req, res) => {
   const dataManager = Object.create(DataManager);
   dataManager.init(exchange, dataDir, dbExt);
   const candles = dataManager.loadCandles(
@@ -34,6 +36,7 @@ app.get("/chart/json/:table", (req, res) => {
   res.json(candles);
 });
 
+//Route to get a list of genomes
 app.get("/api/genomes/", (req, res) => {
   const genomeDir = "./genomes/";
   const genomesFinal = [];
@@ -57,8 +60,24 @@ app.get("/api/genomes/", (req, res) => {
   res.json(genomesFinal);
 });
 
+//Base route to serve react app
 app.get("*", (req, res) =>
   res.sendFile(path.resolve(__dirname, "./dist/index.html"))
 );
 
-app.listen(3000, () => console.log("App listening on port 3000!"));
+app._router.stack.forEach(r => {
+  if (r.route && r.route.path) {
+    console.log(r.route.path);
+  }
+});
+console.log("\n");
+
+const server = app.listen(3000, () =>
+  console.log("App listening on port 3000!")
+);
+const io = require("socket.io").listen(server);
+
+io.on("connection", socket => {
+  setInterval(() => socket.emit("msg", "POC Testing"), 2000);
+  socket.on("disconnect", () => console.log("Client disconnected"));
+});
