@@ -11,6 +11,7 @@ import Chart from "./components/Chart";
 import Table from "./components/Table";
 
 import GA from "./pages/GA";
+import GARun from "./pages/GARun";
 import Genomes from "./pages/Genomes";
 import Home from "./pages/Home";
 import Import from "./pages/Import";
@@ -23,6 +24,7 @@ const App = () => (
       <Route exact path="/" component={Home} />
       <Route path="/home" component={Home} />
       <Route path="/Process" component={Process} />
+      <Route path="/GA/:candle" component={GARun} />
       <Route path="/GA" component={GA} />
       <Route path="/Import" component={Import} />
       <Route path="/Genomes" component={Genomes} />

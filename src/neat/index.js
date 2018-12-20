@@ -1,5 +1,5 @@
 // TODO: Normalisation of Novelty Search objectives
-
+const { EventEmitter } = require("events");
 const fs = require("fs");
 const { Neat, methods, architect } = require("neataptic");
 const os = require("os");
@@ -66,16 +66,7 @@ const mutations = [
 ];
 
 const NeatTrainer = {
-  init: function({
-    exchange,
-    pair,
-    type,
-    length,
-    dataDir,
-    dbExt,
-    neatConfig,
-    indicatorConfig
-  }) {
+  init: function({ exchange, pair, type, length, dataDir, dbExt }) {
     this.dataManager = Object.create(DataManager);
     this.dataManager.init(exchange, dataDir, dbExt);
     this.neatConfig = neatConfig;
@@ -85,6 +76,7 @@ const NeatTrainer = {
     this.pair = pair;
     this.type = type;
     this.length = length;
+    this.eventEmitter = new EventEmitter();
 
     this.candidatePopulation = [];
     this.noveltySearchArchive = [];
@@ -199,16 +191,21 @@ const NeatTrainer = {
       }
     };
     {
-      displayPopulationStats(
-        this.candidatePopulation.filter((_, index) => index < 8)
-      );
+      this.eventEmitter.emit("update", {
+        generation: this.generation,
+        candidates: this.candidatePopulation,
+        parents: this.parentPopulation
+      });
+      displayPopulationStats(this.candidatePopulation.slice(0, 8));
       if (!this.candidatePopulation.length) {
         Logger.debug("Meanwhile in general population");
-        displayPopulationStats(
-          this.parentPopulation.filter((_, index) => index < 8)
-        );
+        displayPopulationStats(this.parentPopulation.slice(0, 8));
       }
     }
+  },
+
+  getEventEmitter: function() {
+    return this.eventEmitter;
   },
 
   nameGenomes: function() {
