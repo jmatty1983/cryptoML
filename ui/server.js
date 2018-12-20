@@ -5,6 +5,7 @@ const path = require("path");
 const webpack = require("webpack");
 const webpackConfig = require("../webpack.config");
 const compiler = webpack(webpackConfig);
+
 const api = require("./api");
 
 const app = express();
@@ -26,13 +27,6 @@ app.get("*", (req, res) =>
   res.sendFile(path.resolve(__dirname, "./dist/index.html"))
 );
 
-//lists routes available
-app._router.stack.forEach(r => {
-  if (r.route && r.route.path) {
-    console.log(r.route.path);
-  }
-});
-
 const server = app.listen(3000, () =>
   console.log("App listening on port 3000!")
 );
@@ -41,6 +35,7 @@ const server = app.listen(3000, () =>
 const io = require("socket.io").listen(server);
 
 io.on("connection", socket => {
-  setInterval(() => socket.emit("msg", "POC Testing"), 2000);
   socket.on("disconnect", () => console.log("Client disconnected"));
 });
+
+app.io = io;

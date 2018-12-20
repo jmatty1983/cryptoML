@@ -2,6 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 
+const Neat = require("../../src/neat");
 const DataManager = require("../../src/dataManager");
 
 const router = express.Router();
@@ -16,12 +17,12 @@ router.get("/chart/:table", (req, res) => {
   const candles = dataManager.loadCandles(
     `[${decodeURIComponent(req.params.table)}]`
   );
-  res.setHeader("Content-Type", "application/json");
+
   res.json(candles);
 });
 
 //Route to get a list of genomes
-router.get("/genomes/", (req, res) => {
+router.get("/genomes", (req, res) => {
   const genomeDir = "./genomes/";
   const genomesFinal = [];
 
@@ -45,7 +46,31 @@ router.get("/genomes/", (req, res) => {
 });
 
 router.get("/candles", (req, res) => {
-  console.log("sumfin");
+  const dataManager = Object.create(DataManager);
+  dataManager.init(exchange, dataDir, dbExt);
+  const tables = dataManager.getCandleTables();
+
+  res.json(tables);
+});
+
+router.get("/garun/:candle", (req, res) => {
+  const neat = Object.create(Neat);
+  const table = decodeURIComponent(req.params.candle);
+  const args = table.split("_");
+
+  neat.init({
+    pair: args[0],
+    type: args[1],
+    length: args[2],
+    exchange,
+    dataDir,
+    dbExt
+  });
+
+  neat.getEventEmitter().on("update", data => req.app.io.emit("msg", data));
+
+  neat.start();
+  res.send("starting ga");
 });
 
 module.exports = router;

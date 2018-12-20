@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 
-import Typography from "@material-ui/core/Typography";
+import Button from "@material-ui/core/Button";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
-import clientSocket from "../lib/clientSocket";
-
+import DisplayTable from "../components/DisplayTable";
 import Layout from "../components/Layout";
 
 export default () => {
@@ -15,18 +16,18 @@ export default () => {
   const fetchData = async () => {
     const response = await fetch(`/api/candles`);
     const json = await response.json();
-
-    const formatted = json.map((d, i) => [
-      <div onClick={() => console.log(d)}>
-        {d.name
-          .split("\\")
-          .pop()
-          .split("_")
-          .slice(0, 5)
-          .join(" ")}
-      </div>,
-      `${Math.round(d.data.testStats.winRate * 10000) / 100}%`
+    const formatted = json.map(d => [
+      ...d.split("_"),
+      <Button
+        component={Link}
+        to={`/GA/${encodeURIComponent(d)}`}
+        color="primary"
+        variant="contained"
+      >
+        Start
+      </Button>
     ]);
+
     setTableData(formatted);
     setLoading(false);
   };
@@ -34,17 +35,18 @@ export default () => {
   useEffect(() => {
     setLoading(true);
     fetchData();
-    const fn = console.log;
-    clientSocket.addListener(fn);
-    return () => clientSocket.removeListener(fn);
   }, []);
+
   return (
     <Layout>
-      <div>
-        <Typography variant="h4" gutterBottom>
-          GA
-        </Typography>
-      </div>
+      {loading ? (
+        <CircularProgress />
+      ) : (
+        <DisplayTable
+          headers={["Pair", "Type", "Length", ""]}
+          data={tableData}
+        />
+      )}
     </Layout>
   );
 };

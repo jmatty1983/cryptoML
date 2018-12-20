@@ -5,6 +5,7 @@ const Indicators = require("./indicators");
 const Logger = require("../logger");
 
 const limit = 100000;
+const candleTypes = ["tick", "time", "volume", "currency"];
 
 const DataManager = {
   /**
@@ -124,6 +125,23 @@ const DataManager = {
     } else {
       return 0;
     }
+  },
+
+  /**
+   * Returns an array of tables names that are processed candles
+   * @returns {array}
+   */
+  getCandleTables: function() {
+    return this.getDb()
+      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+      .all()
+      .map(({ name }) => name)
+      .filter(table =>
+        candleTypes.reduce(
+          (isCandle, type) => isCandle || table.includes(type),
+          false
+        )
+      );
   },
 
   /**
