@@ -16,8 +16,8 @@ exports.neatConfig = {
   // 1 - Long Buy Sell & Pos
   // 2 - Long+Short Buy Sell & Pos
   outputSize: 2,
-  // how do we select candidates for paper/live?
-  // note: see what tradeManager returns
+
+  candidatePopulationSize: 32,
   candidateSortingCriteria: ["OK", "profit", "EV", "R", "winRate"],
   // novelty search related
   noveltySearchDistanceOrder: 1.8,
@@ -74,22 +74,20 @@ exports.neatConfig = {
 };
 
 exports.indicatorConfig = [
-  /*  {
+  {
     name: "sma",
     params: [9],
     //just a place holder for now. Will allow different normalising functions to be applied
     //to different indicators
     normFunc: "percentageChangeLog2"
-  }*/
+  }
 ];
 
 exports.traderConfig = {
   //Threshold for network signal output to be interpreted as going long
-  longThresh: (0 * 1) / 32,
+  longThresh: 1 / 32,
   //Threshold for network signal output to be interpreted as going short
   shortThresh: 0,
-  //Minimum positions size change required before placing an order
-  positionChangeThresh: 0.05,
   // position size limits
   minPositionSize: 0.05,
   maxPositionSize: 1.0,

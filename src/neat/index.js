@@ -109,8 +109,6 @@ const NeatTrainer = {
   },
 
   breed: function() {
-    this.neat.sort();
-
     let getUniqueOffspring = () => {
       while (true) {
         const offspring = this.mutate(this.neat.getOffspring());
@@ -142,7 +140,7 @@ const NeatTrainer = {
       );
     }
 
-    let dispStats = genomes => {
+    let displayPopulationStats = genomes => {
       const tableOptions = {
         columnDefault: {
           paddingLeft: 0,
@@ -201,21 +199,19 @@ const NeatTrainer = {
       }
     };
     {
-      dispStats(this.candidatePopulation.filter((_, index) => index < 8));
+      displayPopulationStats(
+        this.candidatePopulation.filter((_, index) => index < 8)
+      );
       if (!this.candidatePopulation.length) {
         Logger.debug("Meanwhile in general population");
-        dispStats(this.parentPopulation.filter((_, index) => index < 8));
+        displayPopulationStats(
+          this.parentPopulation.filter((_, index) => index < 8)
+        );
       }
     }
   },
 
-  getFitness: function({ profit, buys, sells }) {
-    return (profit - 1) * 100 * Math.atan(buys * sells);
-  },
-
-  processStatistics: function(results) {
-    // genome naming
-
+  nameGenomes: function() {
     const date = Date.now();
     this.neat.population.forEach(genome => {
       const gstr = JSON.stringify(genome.toJSON());
@@ -230,6 +226,36 @@ const NeatTrainer = {
           syllables: 2 + (this.generation % 2)
         });
     });
+  },
+
+  saveCandidateGenomes: function() {
+    this.candidatePopulation.forEach(genome => {
+      const safePairName = this.pair.replace(/[^a-z0-9]/gi, "");
+      const filename = `${safePairName}_${this.type}_${this.length}_PnL_${(
+        genome.testStats.profit * 100
+      ).toFixed(2)}_WR_${(genome.testStats.winRate * 100).toFixed(2)}_(${
+        genome.name
+      })`;
+      const dir = `${__dirname}/../../genomes/${safePairName}`;
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir);
+      }
+      if (!fs.existsSync(`${dir}/${filename}`)) {
+        const data = {
+          genome: genome.toJSON(),
+          trainStats: genome.trainStats,
+          testStats: genome.testStats,
+          traderConfig,
+          indicatorConfig,
+          neatConfig
+        };
+        fs.writeFileSync(`${dir}/${filename}`, JSON.stringify(data));
+      }
+    });
+  },
+
+  evaluate: function(results) {
+    this.nameGenomes();
 
     results.forEach(({ trainStats, testStats, id }) => {
       let genome = this.neat.population[id];
@@ -264,7 +290,7 @@ const NeatTrainer = {
     });
 
     this.candidatePopulation.sort((a, b) => a.rank - b.rank);
-    this.candidatePopulation.length = this.neatConfig.populationSize;
+    this.candidatePopulation.length = this.neatConfig.candidatePopulationSize;
 
     this.candidatePopulation = this.candidatePopulation.filter(
       genome => genome.stats.OK == true && genome.testStats.OK == true
@@ -392,35 +418,7 @@ const NeatTrainer = {
     });
 
     let results = ArrayUtils.flatten(await Promise.all(work));
-    this.processStatistics(results);
-
-    // TODO: handle this differently
-
-    results.forEach(({ trainStats, testStats, id }) => {
-      const testScore = testStats.value;
-      if (testScore > this.highScore && trainStats.value > 1) {
-        const data = {
-          genome: this.neat.population[id].toJSON(),
-          trainStats,
-          testStats,
-          traderConfig,
-          indicatorConfig,
-          neatConfig
-        };
-
-        const safePairName = this.pair.replace(/[^a-z0-9]/gi, "");
-        const filename = `${safePairName}_${this.type}_${this.length}_gen_${
-          this.generation
-        }_id_${id}_${testStats.value * 100}`;
-        const dir = `${__dirname}/../../genomes/${safePairName}`;
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir);
-        }
-
-        fs.writeFileSync(`${dir}/${filename}`, JSON.stringify(data));
-        this.highScore = testScore;
-      }
-    });
+    this.evaluate(results);
   },
 
   histogram: function() {
@@ -463,14 +461,14 @@ const NeatTrainer = {
           .reduce((acc, val) => acc + val, []);
         Logger.debug(`${histoString}`);
       });
+
+    return { histogram, edges };
   },
 
   start: async function() {
     Logger.info("Starting genome search");
 
-    // this.data = this.data.map( lane => lane.slice(0,lane.length>>2) )
-
-    this.histogram();
+    // this.histogram();
     this.normalisedData = this.getNormalisedData();
 
     if (this.normalisedData.length) {
@@ -485,22 +483,13 @@ const NeatTrainer = {
         mutationRate: this.neatConfig.mutationRate,
         mutationAmount: this.neatConfig.mutationAmount,
         selection: methods.selection.TOURNAMENT,
-        clear: true,
         network: new architect.Random(
           this.normalisedData.length,
           1,
           this.neatConfig.outputSize
-        )
+        ),
+        clear: true
       });
-
-      this.neat.population.forEach(
-        genome =>
-          (genome = new architect.Random(
-            this.normalisedData.length,
-            1,
-            this.neatConfig.outputSize
-          ))
-      );
 
       this.neat.mutate();
     }
@@ -567,6 +556,7 @@ const NeatTrainer = {
     while (true) {
       this.generation++;
       await this.train();
+      this.saveCandidateGenomes();
       this.breed();
     }
   }
