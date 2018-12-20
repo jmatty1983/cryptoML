@@ -67,7 +67,21 @@ router.get("/garun/:candle", (req, res) => {
     dbExt
   });
 
-  neat.getEventEmitter().on("update", data => req.app.io.emit("msg", data));
+  neat.getEventEmitter().on("update", data => {
+    const extractStats = ({ generation, stats, testStats }) => ({
+      generation,
+      stats,
+      testStats
+    });
+
+    const toEmit = {
+      generation: data.generation,
+      candidates: data.candidates.map(extractStats),
+      parents: data.parents.map(extractStats)
+    };
+
+    req.app.io.emit("msg", toEmit);
+  });
 
   neat.start();
   res.send("starting ga");

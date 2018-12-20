@@ -191,16 +191,16 @@ const NeatTrainer = {
       }
     };
     {
-      displayPopulationStats(this.candidatePopulation.slice(0, 8));
-      if (!this.candidatePopulation.length) {
-        Logger.debug("Meanwhile in general population");
-        displayPopulationStats(this.parentPopulation.slice(0, 8));
-      }
       this.eventEmitter.emit("update", {
         generation: this.generation,
         candidates: this.candidatePopulation,
         parents: this.parentPopulation
       });
+      displayPopulationStats(this.candidatePopulation.slice(0, 8));
+      if (!this.candidatePopulation.length) {
+        Logger.debug("Meanwhile in general population");
+        displayPopulationStats(this.parentPopulation.slice(0, 8));
+      }
     }
   },
 

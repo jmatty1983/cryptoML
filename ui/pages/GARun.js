@@ -11,26 +11,25 @@ const GARun = props => {
   const [cTableData, setCTableData] = useState([]);
   const [pTableData, setPTableData] = useState([]);
   const [gen, setGen] = useState(0);
-  const headers = ["Gen", "Profit", "RTs", "Win%", "Profit", "RTs", "Win%"];
+  const headers = ["Gen", "Profit", "RTs", "Win%", "tProfit", "tRTs", "tWin%"];
 
   const candle = props.match.params.candle;
   const fetchData = candle => fetch(`/api/garun/${candle}`);
 
   useEffect(() => {
     fetchData(candle);
-    const fn = ({ candidates, generation, parents }) => {
-      console.log(candidates, generation, parents);
+    const fn = data => {
+      const { generation, candidates, parents } = data;
       setGen(generation);
       const genomeToTable = ({ generation, stats, testStats }) => {
-        console.log(generation, stats, testStats);
         return [
           generation,
-          stats.profit.toFixed(3),
+          stats.profit.toFixed(3) * 100,
           stats.RTs.toFixed(2),
-          stats.winRate.toFixed(4),
-          testStats.profit.toFixed(3),
+          stats.winRate.toFixed(4) * 100,
+          testStats.profit.toFixed(3) * 100,
           testStats.RTs.toFixed(2),
-          testStats.winRate.toFixed(4)
+          testStats.winRate.toFixed(4) * 100
         ];
       };
       setCTableData(candidates.map(genomeToTable));
@@ -44,7 +43,7 @@ const GARun = props => {
 
   return (
     <Layout>
-      <h3>{gen}</h3>
+      <h3>Generation: {gen}</h3>
       <h3>candidates: {cTableData.length}</h3>
       <DisplayTable headers={headers} data={cTableData} />
       <h3>parents: {pTableData.length}</h3>
