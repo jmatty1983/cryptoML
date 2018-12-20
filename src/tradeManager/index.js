@@ -8,7 +8,6 @@ const TradeManager = {
     {
       longThresh,
       shortThresh,
-      positionChangeThresh,
       minPositionSize,
       maxPositionSize,
       fees,
@@ -30,7 +29,6 @@ const TradeManager = {
     this.networkInput = networkInput;
     this.longThresh = longThresh;
     this.shortThresh = shortThresh;
-    this.positionChangeThresh = positionChangeThresh;
     this.minPositionSize = minPositionSize;
     this.maxPositionSize = maxPositionSize;
     this.fees = fees;
@@ -56,6 +54,11 @@ const TradeManager = {
 
     this.exposure = 0;
     this.avgExpDepth = 0;
+
+    this.drawDown = 0;
+    this.maxDrawDown = 0;
+    this.upDraw = 0;
+    this.maxUpDraw = 0;
 
     this.minQuantity = this.stepSize = 0.000001; // BTC 0.00000100; // XRP 0.10000000
 
