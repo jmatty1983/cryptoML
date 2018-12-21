@@ -215,6 +215,9 @@ const TradeManager = {
     const EV = winRate * this.avgWin + (1 - winRate) * this.avgLoss;
     const R = safeDiv(this.avgWin, -this.avgLoss);
 
+    const RTs = this.sells;
+    const RTsToTimeSpanRatio = RTs / timeSpanInMonths;
+
     this.avgExpDepth = safeDiv(this.avgExpDepth, this.exposure);
 
     return {
@@ -235,9 +238,9 @@ const TradeManager = {
       avgLoss: this.avgLoss,
       avgExpDepth: this.avgExpDepth,
 
-      EV: EV,
-
-      RTs: (this.buys + this.sells) / 2,
+      EV,
+      RTs,
+      RTsToTimeSpanRatio,
 
       wins: this.tradesWon / timeSpanInMonths,
       losses: this.tradesLost / timeSpanInMonths,

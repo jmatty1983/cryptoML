@@ -301,13 +301,13 @@ const NeatTrainer = {
 
     this.neat.population = [...this.neat.population, ...this.parentPopulation];
 
-    const nsObj = this.neat.population.map(
-      genome => genome.noveltySearchObjectives
-    );
+    const nsObj = this.neat.population.map(genome => {
+      return genome.noveltySearchObjectives;
+    });
 
-    const archive = this.noveltySearchArchive.map(
-      genome => genome.noveltySearchObjectives
-    );
+    const archive = this.noveltySearchArchive.map(genome => {
+      return genome.noveltySearchObjectives;
+    });
 
     const novelties = noveltySearch(
       nsObj,
