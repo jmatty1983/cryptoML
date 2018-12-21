@@ -6,6 +6,7 @@
   "scripts": {
     "prepare": "patch-package",
     "start": "node --experimental-worker src/main",
+    "blessed": "node --experimental-worker src/blessed",
     "start:ui": "node --experimental-worker ui/server.js",
     "start:ui:prod": "set NODE_ENV=production && node --experimental-worker ui/server.js",
     "build:ui": "webpack --env development --mode development",
@@ -48,6 +49,7 @@
     "mathjs": "^5.4.0",
     "mocha": "^5.2.0",
     "neataptic": "^1.4.7",
+    "neo-blessed": "^0.2.0",
     "nyc": "^13.1.0",
     "phonetic": "^0.1.1",
     "prettier": "^1.14.3",
