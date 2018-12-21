@@ -2,22 +2,27 @@ require("dotenv-safe").config();
 
 const express = require("express");
 const path = require("path");
-const webpack = require("webpack");
-const webpackConfig = require("../webpack.config");
-const compiler = webpack(webpackConfig);
 
 const api = require("./api");
 
 const app = express();
+const mode = process.env.NODE_ENV || "development";
 
 //Middleware for hot module reloading
-app.use(
-  require("webpack-dev-middleware")(compiler, {
-    noInfo: true,
-    publicPath: webpackConfig.output.publicPath
-  })
-);
-app.use(require("webpack-hot-middleware")(compiler));
+if (mode === "development") {
+  const webpack = require("webpack");
+  const webpackConfig = require("../webpack.development");
+  const compiler = webpack(webpackConfig);
+
+  app.use(
+    require("webpack-dev-middleware")(compiler, {
+      noInfo: true,
+      publicPath: webpackConfig.output.publicPath
+    })
+  );
+  app.use(require("webpack-hot-middleware")(compiler));
+}
+
 app.use(express.static(path.join(__dirname, "./dist")));
 
 app.use("/api", api);

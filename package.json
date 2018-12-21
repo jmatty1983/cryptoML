@@ -7,7 +7,9 @@
     "prepare": "patch-package",
     "start": "node --experimental-worker src/main",
     "start:ui": "node --experimental-worker ui/server.js",
-    "build:ui": "webpack --mode development",
+    "start:ui:prod": "set NODE_ENV=production && node --experimental-worker ui/server.js",
+    "build:ui": "webpack --env development --mode development",
+    "build:ui:prod": "webpack --env production --mode production",
     "test": "nyc node --experimental-worker node_modules/mocha/bin/_mocha -c \"./src/**/*.spec.js*\" && nyc report --reporter=html"
   },
   "husky": {
