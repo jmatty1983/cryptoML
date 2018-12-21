@@ -1,5 +1,7 @@
 // TODO: Normalisation of Novelty Search objectives
 
+const assert = require("assert");
+
 const fs = require("fs");
 const { Neat, methods, architect } = require("neataptic");
 const os = require("os");
@@ -161,10 +163,14 @@ const NeatTrainer = {
         "Profit",
         "RTs",
         "Win%",
+        "DrDn",
+        "UpDr",
         "  ",
         "Profit",
         "RTs",
         "Win%",
+        "DrDn",
+        "UpDr",
         " ",
         "Name"
       ];
@@ -177,12 +183,16 @@ const NeatTrainer = {
           g.generation,
           "Train".charAt(index),
           sign((100 * g.stats.profit).toFixed(1)) + "%",
-          g.stats.RTs.toFixed(2),
+          g.stats.RTsPerMonth.toFixed(2),
           (100 * g.stats.winRate).toFixed(2),
+          g.stats.maxDrawDown.toFixed(2),
+          g.stats.maxUpDraw.toFixed(2),
           "Test".charAt(index),
           sign((100 * g.testStats.profit).toFixed(2)) + "%",
-          g.testStats.RTs.toFixed(2),
+          g.testStats.RTsPerMonth.toFixed(2),
           (100 * g.testStats.winRate).toFixed(1),
+          g.testStats.maxDrawDown.toFixed(2),
+          g.testStats.maxUpDraw.toFixed(2),
           " ",
           g.name
         ];
@@ -233,7 +243,7 @@ const NeatTrainer = {
       const safePairName = this.pair.replace(/[^a-z0-9]/gi, "");
       const filename = `${safePairName}_${this.type}_${this.length}_PnL_${(
         genome.testStats.profit * 100
-      ).toFixed(2)}_WR_${(genome.testStats.winRate * 100).toFixed(2)}_(${
+      ).toFixed(4)}_WR_${(genome.testStats.winRate * 100).toFixed(4)}_(${
         genome.name
       })`;
       const dir = `${__dirname}/../../genomes/${safePairName}`;
@@ -243,7 +253,7 @@ const NeatTrainer = {
       if (!fs.existsSync(`${dir}/${filename}`)) {
         const data = {
           genome: genome.toJSON(),
-          trainStats: genome.trainStats,
+          trainStats: genome.stats,
           testStats: genome.testStats,
           traderConfig,
           indicatorConfig,
@@ -281,8 +291,9 @@ const NeatTrainer = {
       })
     ];
 
-    const candidatesToSort = this.candidatePopulation.map(
-      genome => genome.candidateSortingObjectives
+    const candidatesToSort = ArrayUtils.getProp(
+      "candidateSortingObjectives",
+      this.candidatePopulation
     );
 
     GBOS(candidatesToSort).forEach((rank, index) => {
@@ -301,13 +312,14 @@ const NeatTrainer = {
 
     this.neat.population = [...this.neat.population, ...this.parentPopulation];
 
-    const nsObj = this.neat.population.map(genome => {
-      return genome.noveltySearchObjectives;
-    });
-
-    const archive = this.noveltySearchArchive.map(genome => {
-      return genome.noveltySearchObjectives;
-    });
+    const nsObj = ArrayUtils.getProp(
+      "noveltySearchObjectives",
+      this.neat.population
+    );
+    const archive = ArrayUtils.getProp(
+      "noveltySearchObjectives",
+      this.noveltySearchArchive
+    );
 
     const novelties = noveltySearch(
       nsObj,
@@ -324,8 +336,15 @@ const NeatTrainer = {
       }
     });
 
-    const toSort = this.neat.population.map(genome => genome.sortingObjectives);
-    GBOS(toSort).forEach((rank, index) => {
+    const toSort = ArrayUtils.getProp(
+      "sortingObjectives",
+      this.neat.population
+    );
+    const sorted = GBOS(toSort);
+    sorted.forEach(rank =>
+      assert(rank >= 0 && !isNaN(rank) && rank !== undefined)
+    );
+    sorted.forEach((rank, index) => {
       this.neat.population[index].score =
         this.neat.population[index].stats.RTs > 0 &&
         this.neat.population[index].testStats.RTs > 0
@@ -494,7 +513,7 @@ const NeatTrainer = {
       this.neat.mutate();
     }
 
-    //Split data into 65% train, 5% gap, 30% test
+    //Split data into training & testing data
     const trainAmt = Math.trunc(
       this.normalisedData[0].length * this.neatConfig.trainAmt
     );
