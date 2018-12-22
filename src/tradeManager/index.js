@@ -8,6 +8,7 @@ const TradeManager = {
     {
       longThresh,
       shortThresh,
+      maxPositions,
       minPositionSize,
       maxPositionSize,
       fees,
@@ -29,6 +30,7 @@ const TradeManager = {
     this.networkInput = networkInput;
     this.longThresh = longThresh;
     this.shortThresh = shortThresh;
+    this.maxPositions = maxPositions;
     this.minPositionSize = minPositionSize;
     this.maxPositionSize = maxPositionSize;
     this.fees = fees;
@@ -85,7 +87,12 @@ const TradeManager = {
           (Math.min(1, Math.max(-1, amount)) * 0.5 + 0.5);
 
       // changeAmt = 0.2
-      if (signal > 0 && this.currency > 0 && changeAmt > 0) {
+      if (
+        signal > 0 &&
+        this.currency > 0 &&
+        changeAmt > 0 &&
+        this.positions < this.maxPositions
+      ) {
         let change = this.currency * changeAmt;
 
         let quantity = change / close;
@@ -296,9 +303,9 @@ const TradeManager = {
       genomeGates: this.genome.gates.length / 100,
       genomeSelfConnections: this.genome.selfconns.length / 100,
 
-      OK: profit > 0 && R > 1 && RTs > 0 ? 1 : 0,
+      OK: profit > 0 && R > 1 && RTs > 0 ? 1 : 0
 
-      trades: this.trades
+      // trades: profit>0?this.trades:[]
     };
 
     /*    if( profit < 0 && winRate === 1 ) {
