@@ -6,7 +6,7 @@
   "scripts": {
     "prepare": "patch-package",
     "start": "node --experimental-worker src/main",
-    "blessed": "node --experimental-worker src/blessed",
+    "blessed": "node --experimental-worker src/blessedUi",
     "start:ui": "node --experimental-worker ui/server.js",
     "start:ui:prod": "set NODE_ENV=production && node --experimental-worker ui/server.js",
     "build:ui": "webpack --env development --mode development",
@@ -69,7 +69,8 @@
     "webpack-cli": "^3.1.2",
     "webpack-dev-middleware": "^3.4.0",
     "webpack-hot-middleware": "^2.24.3",
-    "winston": "^3.1.0"
+    "winston": "^3.1.0",
+    "winston-transport": "^4.2.0"
   },
   "devDependencies": {
     "patch-package": "^5.1.1"

@@ -27,7 +27,7 @@ const {
   neatConfig
 } = require("../config/config");
 const DataManager = require("../dataManager");
-const Logger = require("../logger");
+const { Logger } = require("../logger");
 
 // eww
 

@@ -1,7 +1,7 @@
 const ccxt = require("ccxt");
 
 const DataManager = require("../dataManager");
-const Logger = require("../logger");
+const { Logger } = require("../logger");
 
 const limit = 1000;
 
@@ -37,6 +37,14 @@ const exchangeImporter = {
         await this.fetchTrades(fromId, pair);
       }
     }
+  },
+
+  /**
+   * Returns payload from exchange info endpoint
+   * @returns {object}
+   */
+  getExchangeInfo: async function() {
+    return await this.exchange.publicGetExchangeInfo();
   },
 
   /**

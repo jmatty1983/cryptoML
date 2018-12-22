@@ -7,7 +7,7 @@ const readline = require("readline");
 const { neatConfig, indicatorConfig } = require("./config/config");
 const ExchangeImport = require("./exchangeImporter");
 const DataManager = require("./dataManager");
-const Logger = require("./logger");
+const { Logger } = require("./logger");
 const Neat = require("./neat");
 
 const args = process.argv.slice(2);

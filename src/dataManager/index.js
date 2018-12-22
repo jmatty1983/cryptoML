@@ -2,7 +2,7 @@ const db = require("better-sqlite3");
 
 const ArrayUtils = require("../lib/array");
 const Indicators = require("./indicators");
-const Logger = require("../logger");
+const { Logger } = require("../logger");
 
 const limit = 100000;
 const candleTypes = ["tick", "time", "volume", "currency"];
