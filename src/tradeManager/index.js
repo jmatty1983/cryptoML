@@ -74,7 +74,7 @@ const TradeManager = {
     };
   },
 
-  doLong: function(signal, amount, [, , , close]) {
+  doLong: function(signal, amount, [, , , close, , startTime]) {
     try {
       // changeAmt = changeAmt>0?changeAmt:changeAmt*2
 
@@ -107,6 +107,13 @@ const TradeManager = {
           this.asset += quantity;
           this.buys++;
 
+          this.trades.push({
+            type: "open",
+            asset: quantity,
+            currency: change,
+            time: startTime
+          });
+
           this.positions.push({
             quantity: quantity,
             investment: change
@@ -125,6 +132,13 @@ const TradeManager = {
 
             const sellVal = change * (1 - (this.fees + this.slippage)) * close;
             this.currency += sellVal;
+
+            this.trades.push({
+              type: "close",
+              asset: change,
+              currency: sellVal,
+              time: startTime
+            });
 
             const deltaValue = sellVal / investment - 1;
             // console.log(sellVal,position.investment,deltaValue)
@@ -216,6 +230,7 @@ const TradeManager = {
       Math.abs(denom) <= Number.EPSILON ? 0 : num / denom;
 
     const value = this.getValue(this.closes[this.closes.length - 1]);
+    this.currency = value;
 
     this.avgWin = safeDiv(this.avgWin, this.tradesWon);
     this.avgLoss = safeDiv(this.avgLoss, this.tradesLost);
@@ -232,6 +247,8 @@ const TradeManager = {
 
     const RTs = this.sells; //(this.buys + this.sells) / 2
     const RTsToTimeSpanRatio = RTs / this.candleCount;
+
+    // Logger.debug(JSON.stringify(this.trades))
 
     this.avgExpDepth = safeDiv(this.avgExpDepth, this.exposure);
 
@@ -279,8 +296,9 @@ const TradeManager = {
       genomeGates: this.genome.gates.length / 100,
       genomeSelfConnections: this.genome.selfconns.length / 100,
 
-      OK: profit > 0 && R > 1 && RTs > 0 ? 1 : 0
-      // OK: profit > 0 && this.tradesWon > 0 && this.tradesLost > 0 && R > 1
+      OK: profit > 0 && R > 1 && RTs > 0 ? 1 : 0,
+
+      trades: this.trades
     };
 
     /*    if( profit < 0 && winRate === 1 ) {

@@ -243,9 +243,7 @@ const NeatTrainer = {
       const safePairName = this.pair.replace(/[^a-z0-9]/gi, "");
       const filename = `${safePairName}_${this.type}_${this.length}_PnL_${(
         genome.testStats.profit * 100
-      ).toFixed(4)}_WR_${(genome.testStats.winRate * 100).toFixed(4)}_(${
-        genome.name
-      })`;
+      ).toFixed(4)}_WR_${(genome.testStats.winRate * 100).toFixed(4)}`;
       const dir = `${__dirname}/../../genomes/${safePairName}`;
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir);
@@ -301,11 +299,15 @@ const NeatTrainer = {
     });
 
     this.candidatePopulation.sort((a, b) => a.rank - b.rank);
-    this.candidatePopulation.length = this.neatConfig.candidatePopulationSize;
 
     this.candidatePopulation = this.candidatePopulation.filter(
-      genome => genome.stats.OK == true && genome.testStats.OK == true
+      ({ stats, testStats }) => stats.OK && testStats.OK
     );
+
+    if (
+      this.candidatePopulation.length > this.neatConfig.candidatePopulationSize
+    )
+      this.candidatePopulation.length = this.neatConfig.candidatePopulationSize;
 
     // perform novelty search & sorting
     // merging parent population with current generation population guarantees elitism
@@ -316,14 +318,14 @@ const NeatTrainer = {
       "noveltySearchObjectives",
       this.neat.population
     );
-    const archive = ArrayUtils.getProp(
+    const nsArchive = ArrayUtils.getProp(
       "noveltySearchObjectives",
       this.noveltySearchArchive
     );
 
     const novelties = noveltySearch(
       nsObj,
-      archive,
+      nsArchive,
       this.neatConfig.noveltySearchDistanceOrder || 2
     );
 
@@ -341,9 +343,6 @@ const NeatTrainer = {
       this.neat.population
     );
     const sorted = GBOS(toSort);
-    sorted.forEach(rank =>
-      assert(rank >= 0 && !isNaN(rank) && rank !== undefined)
-    );
     sorted.forEach((rank, index) => {
       this.neat.population[index].score =
         this.neat.population[index].stats.RTs > 0 &&
@@ -496,19 +495,24 @@ const NeatTrainer = {
           this.neatConfig.outputSize
         }`
       );
-      this.neat = new Neat(this.normalisedData.length, 1, null, {
-        mutation: mutations,
-        popsize: this.neatConfig.populationSize,
-        mutationRate: this.neatConfig.mutationRate,
-        mutationAmount: this.neatConfig.mutationAmount,
-        selection: methods.selection.TOURNAMENT,
-        network: new architect.Random(
-          this.normalisedData.length,
-          1,
-          this.neatConfig.outputSize
-        ),
-        clear: true
-      });
+      this.neat = new Neat(
+        this.normalisedData.length,
+        this.neatConfig.outputSize,
+        null,
+        {
+          mutation: mutations,
+          popsize: this.neatConfig.populationSize,
+          mutationRate: this.neatConfig.mutationRate,
+          mutationAmount: this.neatConfig.mutationAmount,
+          selection: methods.selection.POWER,
+          network: new architect.Random(
+            this.normalisedData.length,
+            0,
+            this.neatConfig.outputSize
+          ),
+          clear: true
+        }
+      );
 
       this.neat.mutate();
     }
