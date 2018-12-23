@@ -24,7 +24,6 @@ router.get("/chart/:table", (req, res) => {
 //Route to get a list of genomes
 router.get("/genomes", (req, res) => {
   const genomeDir = "./genomes/";
-  const genomesFinal = [];
 
   const walkSync = dir =>
     fs.readdirSync(dir).reduce((files, file) => {
@@ -36,11 +35,10 @@ router.get("/genomes", (req, res) => {
 
   const genomeList = walkSync(genomeDir);
 
-  genomeList.map(genome => {
-    const name = `./${genome}`;
-    const genomeData = JSON.parse(fs.readFileSync(name, "utf8"));
-    genomesFinal.push({ name: genome, data: genomeData });
-  });
+  const genomesFinal = genomeList.map(genome => ({
+    name: genome,
+    data: JSON.parse(fs.readFileSync(`./${genome}`, "utf8"))
+  }));
 
   res.json(genomesFinal);
 });
