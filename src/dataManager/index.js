@@ -101,6 +101,23 @@ const DataManager = {
   },
 
   /**
+   * Returns an array of tables names that are processed candles
+   * @returns {array}
+   */
+  getCandleTables: function() {
+    return this.getDb()
+      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+      .all()
+      .map(({ name }) => name)
+      .filter(table =>
+        candleTypes.reduce(
+          (isCandle, type) => isCandle || table.includes(type),
+          false
+        )
+      );
+  },
+
+  /**
    * Returns a live sqlite connection
    * @returns {sqlite3 connection instance}
    */
@@ -131,15 +148,18 @@ const DataManager = {
    * Returns an array of tables names that are processed candles
    * @returns {array}
    */
-  getCandleTables: function() {
+  getTradeTables: function() {
     return this.getDb()
       .prepare("SELECT name FROM sqlite_master WHERE type='table'")
       .all()
       .map(({ name }) => name)
       .filter(table =>
         candleTypes.reduce(
-          (isCandle, type) => isCandle || table.includes(type),
-          false
+          (isNotCandle, type) =>
+            !table.includes(type) &&
+            !table.includes("sqlite_sequence") &&
+            isNotCandle,
+          true
         )
       );
   },
@@ -315,7 +335,7 @@ const DataManager = {
    *   length: number
    * }]
    */
-  processCandles: function(table, types) {
+  processCandles: async function(table, types) {
     types.forEach(({ type, length }) =>
       this.getDb()
         .prepare(`DROP TABLE IF EXISTS [${table}_${type}_${length}]`)
@@ -352,6 +372,8 @@ const DataManager = {
         return remainderObj;
       }, {});
       offset += limit;
+      //ugh
+      await new Promise(resolve => setTimeout(resolve, 0));
     } while (rowLen === limit);
   },
 
