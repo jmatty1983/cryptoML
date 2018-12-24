@@ -8,6 +8,7 @@ const TradeManager = {
     {
       longThresh,
       shortThresh,
+      maxPositions,
       minPositionSize,
       maxPositionSize,
       fees,
@@ -29,6 +30,7 @@ const TradeManager = {
     this.networkInput = networkInput;
     this.longThresh = longThresh;
     this.shortThresh = shortThresh;
+    this.maxPositions = maxPositions;
     this.minPositionSize = minPositionSize;
     this.maxPositionSize = maxPositionSize;
     this.fees = fees;
@@ -55,10 +57,10 @@ const TradeManager = {
     this.exposure = 0;
     this.avgExpDepth = 0;
 
-    this.drawDown = 0;
-    this.maxDrawDown = 0;
-    this.upDraw = 0;
-    this.maxUpDraw = 0;
+    this.drawDown = 1;
+    this.maxDrawDown = 1;
+    this.upDraw = 1;
+    this.maxUpDraw = 1;
 
     this.minQuantity = this.stepSize = 0.000001; // BTC 0.00000100; // XRP 0.10000000
 
@@ -74,7 +76,7 @@ const TradeManager = {
     };
   },
 
-  doLong: function(signal, amount, [, , , close]) {
+  doLong: function(signal, amount, [, , , close, , startTime]) {
     try {
       // changeAmt = changeAmt>0?changeAmt:changeAmt*2
 
@@ -82,20 +84,27 @@ const TradeManager = {
       let changeAmt =
         this.minPositionSize +
         (this.maxPositionSize - this.minPositionSize) *
-          (Math.tanh(amount) * 0.5 + 0.5);
+          (Math.min(1, Math.max(-1, amount)) * 0.5 + 0.5);
 
       // changeAmt = 0.2
-      if (signal > 0 && this.currency > 0 && changeAmt > 0) {
+      if (
+        signal > 0 &&
+        this.currency > 0 &&
+        changeAmt > 0 &&
+        this.positions < this.maxPositions
+      ) {
         let change = this.currency * changeAmt;
 
         let quantity = change / close;
         quantity = this.stepSize * Math.floor(quantity / this.stepSize);
         quantity = Math.max(quantity, this.minQuantity);
         change = quantity * close;
+
         while (change > this.currency) {
           quantity -= this.minQuantity;
           change -= this.minQuantity * close;
         }
+
         quantity *= 1 - (this.fees + this.slippage);
 
         if (quantity > this.minQuantity) {
@@ -105,18 +114,25 @@ const TradeManager = {
           this.asset += quantity;
           this.buys++;
 
+          this.trades.push({
+            type: "open",
+            asset: quantity,
+            currency: change,
+            time: startTime
+          });
+
           this.positions.push({
             quantity: quantity,
-            investment: change,
-            price: close
+            investment: change
           });
         }
       } else if (signal < 0 && this.asset > 0) {
         if (this.positions.length) {
-          const position = this.positions.shift();
-          let change = position.quantity;
+          const { investment, quantity } = this.positions.shift();
+          let change = quantity;
 
-          if (change >= this.minQuantity) {
+          //          if (change >= this.minQuantity) {
+          if (true) {
             change = Math.min(this.asset, change);
 
             this.asset -= change;
@@ -124,12 +140,26 @@ const TradeManager = {
             const sellVal = change * (1 - (this.fees + this.slippage)) * close;
             this.currency += sellVal;
 
-            const deltaValue = sellVal / position.investment - 1;
-            if (deltaValue >= 0) {
+            this.trades.push({
+              type: "close",
+              asset: change,
+              currency: sellVal,
+              time: startTime
+            });
+
+            const deltaValue = sellVal / investment - 1;
+            // console.log(sellVal,position.investment,deltaValue)
+            if (deltaValue > 0) {
               this.avgWin += deltaValue;
+              this.upDraw += deltaValue;
+              this.maxDrawDown = Math.min(this.maxDrawDown, this.drawDown);
+              this.drawDown = 1;
               this.tradesWon++;
             } else if (deltaValue < 0) {
               this.avgLoss += deltaValue;
+              this.drawDown += deltaValue;
+              this.maxUpDraw = Math.max(this.maxUpDraw, this.upDraw);
+              this.upDraw = 1;
               this.tradesLost++;
             }
 
@@ -197,10 +227,17 @@ const TradeManager = {
       this.handleCandle(candle, output);
     });
 
+    this.maxDrawDown = Math.min(this.maxDrawDown, this.drawDown);
+    this.maxUpDraw = Math.max(this.maxUpDraw, this.upDraw);
+
+    // console.log(this.doLong,this.closes[this.closes.length - 1])
+    // this.doLong(-1, 1, [0,0,0,this.closes[this.closes.length - 1]]);
+
     let safeDiv = (num, denom) =>
       Math.abs(denom) <= Number.EPSILON ? 0 : num / denom;
 
     const value = this.getValue(this.closes[this.closes.length - 1]);
+    this.currency = value;
 
     this.avgWin = safeDiv(this.avgWin, this.tradesWon);
     this.avgLoss = safeDiv(this.avgLoss, this.tradesLost);
@@ -215,9 +252,14 @@ const TradeManager = {
     const EV = winRate * this.avgWin + (1 - winRate) * this.avgLoss;
     const R = safeDiv(this.avgWin, -this.avgLoss);
 
+    const RTs = this.sells; //(this.buys + this.sells) / 2
+    const RTsToTimeSpanRatio = RTs / this.candleCount;
+
+    // Logger.debug(JSON.stringify(this.trades))
+
     this.avgExpDepth = safeDiv(this.avgExpDepth, this.exposure);
 
-    return {
+    const ret = {
       currency: this.currency,
       startCurrency: this.startCurrency,
       asset: this.asset,
@@ -235,9 +277,12 @@ const TradeManager = {
       avgLoss: this.avgLoss,
       avgExpDepth: this.avgExpDepth,
 
-      EV: EV,
+      EV,
 
-      RTs: (this.buys + this.sells) / 2,
+      RTs,
+      RTsPerMonth: RTs / timeSpanInMonths,
+      RTsToTimeSpanRatio,
+      // RTratio: ((this.buys+this.sells)/2)/this.candleCount
 
       wins: this.tradesWon / timeSpanInMonths,
       losses: this.tradesLost / timeSpanInMonths,
@@ -248,15 +293,27 @@ const TradeManager = {
       R: R,
       winRate: winRate,
 
+      maxUpDraw: this.maxUpDraw - 1,
+      maxDrawDown: this.maxDrawDown - 1,
+
       exposure: this.exposure / this.candleCount,
 
-      genomeNodes: this.genome.nodes.length / 10,
-      genomeConnections: this.genome.connections.length / 10,
-      genomeGates: this.genome.gates.length / 10,
-      genomeSelfConnections: this.genome.selfconns.length / 10,
+      genomeNodes: this.genome.nodes.length / 100,
+      genomeConnections: this.genome.connections.length / 100,
+      genomeGates: this.genome.gates.length / 100,
+      genomeSelfConnections: this.genome.selfconns.length / 100,
 
-      OK: profit > 0 && this.tradesWon > 0 && this.tradesLost > 0 && R > 1
+      OK: profit > 0 && R > 1 && RTs > 0 ? 1 : 0
+
+      // trades: profit>0?this.trades:[]
     };
+
+    /*    if( profit < 0 && winRate === 1 ) {
+      console.log('wtf? ' + JSON.stringify(ret))
+      assert(false)
+    }*/
+
+    return ret;
   }
 };
 

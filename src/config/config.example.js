@@ -89,6 +89,7 @@ exports.traderConfig = {
   //Threshold for network signal output to be interpreted as going short
   shortThresh: 0,
   // position size limits
+  maxPositions: 25,
   minPositionSize: 0.05,
   maxPositionSize: 1.0,
   //Fees and slippage used for calculating pnl

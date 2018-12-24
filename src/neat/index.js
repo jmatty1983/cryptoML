@@ -1,19 +1,16 @@
 // TODO: Normalisation of Novelty Search objectives
+const assert = require("assert");
+const crypto = require("crypto");
 const { EventEmitter } = require("events");
 const fs = require("fs");
-const { Neat, methods, architect } = require("neataptic");
-const os = require("os");
-const { Worker, MessageChannel } = require("worker_threads");
-
 const GBOS = require("GBOS-js");
+const histc = require("histc");
+const { Neat, methods, architect } = require("neataptic");
 const noveltySearch = require("./noveltySearch");
-
+const os = require("os");
 const phonetic = require("phonetic");
 const table = require("table");
-
-const crypto = require("crypto");
-
-const histc = require("histc");
+const { Worker, MessageChannel } = require("worker_threads");
 
 const normaliseFunctions = {
   percentageChangeLog2: require("./normFuncs").percentChange
@@ -153,10 +150,14 @@ const NeatTrainer = {
         "Profit",
         "RTs",
         "Win%",
+        "DrDn",
+        "UpDr",
         "  ",
         "Profit",
         "RTs",
         "Win%",
+        "DrDn",
+        "UpDr",
         " ",
         "Name"
       ];
@@ -169,12 +170,16 @@ const NeatTrainer = {
           g.generation,
           "Train".charAt(index),
           sign((100 * g.stats.profit).toFixed(1)) + "%",
-          g.stats.RTs.toFixed(2),
+          g.stats.RTsPerMonth.toFixed(2),
           (100 * g.stats.winRate).toFixed(2),
+          g.stats.maxDrawDown.toFixed(2),
+          g.stats.maxUpDraw.toFixed(2),
           "Test".charAt(index),
           sign((100 * g.testStats.profit).toFixed(2)) + "%",
-          g.testStats.RTs.toFixed(2),
+          g.testStats.RTsPerMonth.toFixed(2),
           (100 * g.testStats.winRate).toFixed(1),
+          g.testStats.maxDrawDown.toFixed(2),
+          g.testStats.maxUpDraw.toFixed(2),
           " ",
           g.name
         ];
@@ -196,10 +201,14 @@ const NeatTrainer = {
         candidates: this.candidatePopulation,
         parents: this.parentPopulation
       });
-      displayPopulationStats(this.candidatePopulation.slice(0, 8));
+      displayPopulationStats(
+        this.candidatePopulation.filter((_, index) => index < 8)
+      );
       if (!this.candidatePopulation.length) {
         Logger.debug("Meanwhile in general population");
-        displayPopulationStats(this.parentPopulation.slice(0, 8));
+        displayPopulationStats(
+          this.parentPopulation.filter((_, index) => index < 8)
+        );
       }
     }
   },
@@ -230,9 +239,7 @@ const NeatTrainer = {
       const safePairName = this.pair.replace(/[^a-z0-9]/gi, "");
       const filename = `${safePairName}_${this.type}_${this.length}_PnL_${(
         genome.testStats.profit * 100
-      ).toFixed(2)}_WR_${(genome.testStats.winRate * 100).toFixed(2)}_(${
-        genome.name
-      })`;
+      ).toFixed(4)}_WR_${(genome.testStats.winRate * 100).toFixed(4)}`;
       const dir = `${__dirname}/../../genomes/${safePairName}`;
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir);
@@ -240,7 +247,7 @@ const NeatTrainer = {
       if (!fs.existsSync(`${dir}/${filename}`)) {
         const data = {
           genome: genome.toJSON(),
-          trainStats: genome.trainStats,
+          trainStats: genome.stats,
           testStats: genome.testStats,
           traderConfig,
           indicatorConfig,
@@ -278,8 +285,9 @@ const NeatTrainer = {
       })
     ];
 
-    const candidatesToSort = this.candidatePopulation.map(
-      genome => genome.candidateSortingObjectives
+    const candidatesToSort = ArrayUtils.getProp(
+      "candidateSortingObjectives",
+      this.candidatePopulation
     );
 
     GBOS(candidatesToSort).forEach((rank, index) => {
@@ -287,28 +295,33 @@ const NeatTrainer = {
     });
 
     this.candidatePopulation.sort((a, b) => a.rank - b.rank);
-    this.candidatePopulation.length = this.neatConfig.candidatePopulationSize;
 
     this.candidatePopulation = this.candidatePopulation.filter(
-      genome => genome.stats.OK == true && genome.testStats.OK == true
+      ({ stats, testStats }) => stats.OK && testStats.OK
     );
+
+    if (
+      this.candidatePopulation.length > this.neatConfig.candidatePopulationSize
+    )
+      this.candidatePopulation.length = this.neatConfig.candidatePopulationSize;
 
     // perform novelty search & sorting
     // merging parent population with current generation population guarantees elitism
 
     this.neat.population = [...this.neat.population, ...this.parentPopulation];
 
-    const nsObj = this.neat.population.map(
-      genome => genome.noveltySearchObjectives
+    const nsObj = ArrayUtils.getProp(
+      "noveltySearchObjectives",
+      this.neat.population
     );
-
-    const archive = this.noveltySearchArchive.map(
-      genome => genome.noveltySearchObjectives
+    const nsArchive = ArrayUtils.getProp(
+      "noveltySearchObjectives",
+      this.noveltySearchArchive
     );
 
     const novelties = noveltySearch(
       nsObj,
-      archive,
+      nsArchive,
       this.neatConfig.noveltySearchDistanceOrder || 2
     );
 
@@ -321,8 +334,12 @@ const NeatTrainer = {
       }
     });
 
-    const toSort = this.neat.population.map(genome => genome.sortingObjectives);
-    GBOS(toSort).forEach((rank, index) => {
+    const toSort = ArrayUtils.getProp(
+      "sortingObjectives",
+      this.neat.population
+    );
+    const sorted = GBOS(toSort);
+    sorted.forEach((rank, index) => {
       this.neat.population[index].score =
         this.neat.population[index].stats.RTs > 0 &&
         this.neat.population[index].testStats.RTs > 0
@@ -474,24 +491,29 @@ const NeatTrainer = {
           this.neatConfig.outputSize
         }`
       );
-      this.neat = new Neat(this.normalisedData.length, 1, null, {
-        mutation: mutations,
-        popsize: this.neatConfig.populationSize,
-        mutationRate: this.neatConfig.mutationRate,
-        mutationAmount: this.neatConfig.mutationAmount,
-        selection: methods.selection.TOURNAMENT,
-        network: new architect.Random(
-          this.normalisedData.length,
-          1,
-          this.neatConfig.outputSize
-        ),
-        clear: true
-      });
+      this.neat = new Neat(
+        this.normalisedData.length,
+        this.neatConfig.outputSize,
+        null,
+        {
+          mutation: mutations,
+          popsize: this.neatConfig.populationSize,
+          mutationRate: this.neatConfig.mutationRate,
+          mutationAmount: this.neatConfig.mutationAmount,
+          selection: methods.selection.POWER,
+          network: new architect.Random(
+            this.normalisedData.length,
+            0,
+            this.neatConfig.outputSize
+          ),
+          clear: true
+        }
+      );
 
       this.neat.mutate();
     }
 
-    //Split data into 65% train, 5% gap, 30% test
+    //Split data into training & testing data
     const trainAmt = Math.trunc(
       this.normalisedData[0].length * this.neatConfig.trainAmt
     );
