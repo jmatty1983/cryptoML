@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 
 import CircularProgress from "@material-ui/core/CircularProgress";
 import Paper from "@material-ui/core/Paper";
+import Typography from "@material-ui/core/Typography";
 
 import DisplayTable from "../components/DisplayTable";
 import Layout from "../components/Layout";
@@ -45,14 +46,14 @@ const GARun = props => {
   return (
     <Layout>
       <Paper>
-        <Typography variant="h3">
+        <Typography variant="h5" align="center">
           Generation: {gen} <CircularProgress />
         </Typography>
-        <Typography align="center" variant="h3">
+        <Typography align="center" variant="h5">
           Candidates: {cTableData.length}
         </Typography>
         <DisplayTable headers={headers} data={cTableData} />
-        <Typography align="center" variant="h3">
+        <Typography align="center" variant="h5">
           Parents
         </Typography>
         <DisplayTable headers={headers} data={pTableData} />

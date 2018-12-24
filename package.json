@@ -8,7 +8,7 @@
     "start": "node --experimental-worker src/main",
     "blessed": "node --experimental-worker src/blessedUi",
     "start:ui": "node --experimental-worker ui/server.js",
-    "start:ui:prod": "set NODE_ENV=production && node --experimental-worker ui/server.js",
+    "start:ui:prod": "node --experimental-worker ui/server.js --prod",
     "build:ui": "webpack --env development --mode development",
     "build:ui:prod": "webpack --env production --mode production",
     "test": "nyc node --experimental-worker node_modules/mocha/bin/_mocha -c \"./src/**/*.spec.js*\" && nyc report --reporter=html"
