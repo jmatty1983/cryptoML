@@ -203,10 +203,14 @@ const NeatTrainer = {
         candidates: this.candidatePopulation,
         parents: this.parentPopulation
       });
-      displayPopulationStats(
-        this.candidatePopulation.filter((_, index) => index < 8)
-      );
-      if (!this.candidatePopulation.length) {
+      if (this.candidatePopulation.length) {
+        displayPopulationStats(
+          this.candidatePopulation.filter((_, index) => index < 8)
+        );
+      } else {
+        Logger.debug(
+          `No candidates discovered in generation ${this.generation}`
+        );
         Logger.debug("Meanwhile in general population");
         displayPopulationStats(
           this.parentPopulation.filter((_, index) => index < 8)
@@ -486,7 +490,6 @@ const NeatTrainer = {
   start: async function() {
     Logger.info("Starting genome search");
 
-    // this.histogram();
     this.normalisedData = this.getNormalisedData();
 
     if (this.normalisedData.length) {

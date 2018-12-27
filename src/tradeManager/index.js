@@ -8,6 +8,7 @@ const TradeManager = {
     {
       longThresh,
       shortThresh,
+      positionChangeThesh,
       maxPositions,
       minPositionSize,
       maxPositionSize,
@@ -61,7 +62,6 @@ const TradeManager = {
     this.maxDrawDown = 1;
     this.upDraw = 1;
     this.maxUpDraw = 1;
-
     this.minQuantity = this.stepSize = 0.000001; // BTC 0.00000100; // XRP 0.10000000
 
     this.positions = [];
@@ -78,15 +78,13 @@ const TradeManager = {
 
   doLong: function(signal, amount, [, , , close, , startTime]) {
     try {
-      // changeAmt = changeAmt>0?changeAmt:changeAmt*2
-
-      // let changeAmt = Math.max(-1, Math.min(1, amount)) * this.maxPositionSize
       let changeAmt =
         this.minPositionSize +
         (this.maxPositionSize - this.minPositionSize) *
           (Math.min(1, Math.max(-1, amount)) * 0.5 + 0.5);
 
-      // changeAmt = 0.2
+      const quantity = (change * (1 - (this.fees + this.slippage))) / close;
+
       if (
         signal > 0 &&
         this.currency > 0 &&
@@ -94,8 +92,8 @@ const TradeManager = {
         this.positions.length < this.maxPositions
       ) {
         let change = this.currency * changeAmt;
-
         let quantity = change / close;
+
         quantity = this.stepSize * Math.floor(quantity / this.stepSize);
         quantity = Math.max(quantity, this.minQuantity);
         change = quantity * close;
@@ -126,20 +124,25 @@ const TradeManager = {
             investment: change
           });
         }
-      } else if (signal < 0 && this.asset > 0) {
-        if (this.positions.length) {
-          const { investment, quantity } = this.positions.shift();
-          let change = quantity;
+      } else if (signal < 0 && this.asset > 0 && this.positions.length) {
+        const { investment, quantity } = this.positions.shift();
+        let change = quantity;
 
-          //          if (change >= this.minQuantity) {
-          if (true) {
-            change = Math.min(this.asset, change);
+        changeAmt =
+          changeAmt * (1 - this.positionChangeThresh) +
+          this.positionChangeThresh;
+        let change = this.asset * changeAmt;
+        change = Math.max(this.asset * changeAmt, this.minQuantity);
+        change = Math.min(this.asset, change);
 
-            this.asset -= change;
-
+        //      if (change >= this.minQuantity) {
+        if (true) {
+          change = Math.min(this.asset, change);
+          this.asset -= change;
+          if (this.asset < this.minQuantity) {
             const sellVal = change * (1 - (this.fees + this.slippage)) * close;
             this.currency += sellVal;
-
+            this.avgPosRem += changeAmt;
             this.trades.push({
               type: "close",
               asset: change,
@@ -148,7 +151,7 @@ const TradeManager = {
             });
 
             const deltaValue = sellVal / investment - 1;
-            // console.log(sellVal,position.investment,deltaValue)
+
             if (deltaValue > 0) {
               this.avgWin += deltaValue;
               this.upDraw += deltaValue;
@@ -167,7 +170,6 @@ const TradeManager = {
           }
         }
       }
-
       if (this.currency < 0 || this.asset < 0) {
         console.log(`${this.currency} ${this.asset}`);
         throw "Currency or Asset dropped below 0";
@@ -204,7 +206,6 @@ const TradeManager = {
     if (signal) {
       this.doLong(signal, amount, candle);
     }
-
     if (this.asset > 0) {
       this.avgExpDepth += this.asset / this.getValue(candle[3]);
       this.exposure++;
@@ -224,12 +225,12 @@ const TradeManager = {
         []
       );
       const output = this.genome.noTraceActivate(candleInput);
+      // if( Math.random()<0.1) Logger.debug(output)
       this.handleCandle(candle, output);
     });
 
     this.maxDrawDown = Math.min(this.maxDrawDown, this.drawDown);
     this.maxUpDraw = Math.max(this.maxUpDraw, this.upDraw);
-
     // console.log(this.doLong,this.closes[this.closes.length - 1])
     // this.doLong(-1, 1, [0,0,0,this.closes[this.closes.length - 1]]);
 
@@ -238,7 +239,6 @@ const TradeManager = {
 
     const value = this.getValue(this.closes[this.closes.length - 1]);
     this.currency = value;
-
     this.avgWin = safeDiv(this.avgWin, this.tradesWon);
     this.avgLoss = safeDiv(this.avgLoss, this.tradesLost);
 
