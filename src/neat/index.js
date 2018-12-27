@@ -1,21 +1,16 @@
 // TODO: Normalisation of Novelty Search objectives
-
 const assert = require("assert");
-
+const crypto = require("crypto");
+const { EventEmitter } = require("events");
 const fs = require("fs");
-const { Neat, methods, architect } = require("neataptic");
-const os = require("os");
-const { Worker, MessageChannel } = require("worker_threads");
-
 const GBOS = require("GBOS-js");
+const histc = require("histc");
+const { Neat, methods, architect } = require("neataptic");
 const noveltySearch = require("./noveltySearch");
-
+const os = require("os");
 const phonetic = require("phonetic");
 const table = require("table");
-
-const crypto = require("crypto");
-
-const histc = require("histc");
+const { Worker, MessageChannel } = require("worker_threads");
 
 const normaliseFunctions = {
   percentageChangeLog2: require("./normFuncs").percentChange
@@ -29,7 +24,7 @@ const {
   neatConfig
 } = require("../config/config");
 const DataManager = require("../dataManager");
-const Logger = require("../logger");
+const { Logger } = require("../logger");
 
 // eww
 
@@ -68,16 +63,7 @@ const mutations = [
 ];
 
 const NeatTrainer = {
-  init: function({
-    exchange,
-    pair,
-    type,
-    length,
-    dataDir,
-    dbExt,
-    neatConfig,
-    indicatorConfig
-  }) {
+  init: function({ exchange, pair, type, length, dataDir, dbExt }) {
     this.dataManager = Object.create(DataManager);
     this.dataManager.init(exchange, dataDir, dbExt);
     this.neatConfig = neatConfig;
@@ -87,6 +73,7 @@ const NeatTrainer = {
     this.pair = pair;
     this.type = type;
     this.length = length;
+    this.eventEmitter = new EventEmitter();
 
     this.candidatePopulation = [];
     this.noveltySearchArchive = [];
@@ -211,6 +198,11 @@ const NeatTrainer = {
       }
     };
     {
+      this.eventEmitter.emit("update", {
+        generation: this.generation,
+        candidates: this.candidatePopulation,
+        parents: this.parentPopulation
+      });
       displayPopulationStats(
         this.candidatePopulation.filter((_, index) => index < 8)
       );
@@ -221,6 +213,10 @@ const NeatTrainer = {
         );
       }
     }
+  },
+
+  getEventEmitter: function() {
+    return this.eventEmitter;
   },
 
   nameGenomes: function() {

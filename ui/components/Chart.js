@@ -8,7 +8,7 @@ const Chart = props => {
   const [loading, setLoading] = useState(true);
 
   const fetchData = async table => {
-    const response = await fetch(`/chart/json/${table}`);
+    const response = await fetch(`/api/chart/${table}`);
     const json = await response.json();
     setData(json);
     setLoading(false);

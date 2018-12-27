@@ -7,7 +7,7 @@ const readline = require("readline");
 const { neatConfig, indicatorConfig } = require("./config/config");
 const ExchangeImport = require("./exchangeImporter");
 const DataManager = require("./dataManager");
-const Logger = require("./logger");
+const { Logger } = require("./logger");
 const Neat = require("./neat");
 
 const args = process.argv.slice(2);
@@ -93,8 +93,9 @@ switch (fn) {
           } would you like it processed now? (y/n)`,
           answer => {
             if (answer.toLowerCase() === "y") {
-              processCandles(args[1], args[2], args[3]);
-              Logger.info("Data processed. You can run GA again.");
+              processCandles(args[1], args[2], args[3]).then(() =>
+                Logger.info("Data processed. You can run GA again.")
+              );
             } else {
               Logger.info("Data must be processed before running GA");
             }
@@ -112,10 +113,10 @@ switch (fn) {
     Logger.error(`Invalid action ${fn}. Valid options are: ${actions}`);
 }
 
-function processCandles(pair, type, length) {
+async function processCandles(pair, type, length) {
   const dataManager = Object.create(DataManager);
   dataManager.init(exchange, dataDir, dbExt);
 
   const types = length.split(",").map(length => ({ type: type, length }));
-  dataManager.processCandles(pair, types);
+  await dataManager.processCandles(pair, types);
 }
