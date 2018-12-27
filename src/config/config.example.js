@@ -18,7 +18,7 @@ exports.neatConfig = {
   outputSize: 2,
 
   candidatePopulationSize: 32,
-  candidateSortingCriteria: ["OK", "profit", "EV", "R", "winRate"],
+  candidateSortingCriteria: ["profit", "EV", "R", "winRate"],
   // novelty search related
   noveltySearchDistanceOrder: 1.8,
   noveltySearchAddRandom: 4,
@@ -27,27 +27,25 @@ exports.neatConfig = {
     "winRate",
     "exposure",
     "avgPosAdd",
-    "avgPosRem",
     "genomeNodes",
     "genomeConnections",
     "genomeGates",
     "genomeSelfConnections",
     "buysToTradesRatio",
-    "buysToTimeSpanRatio",
-    "sellsToTimeSpanRatio",
-    "avgExpDepth"
+    "avgExpDepth",
+    "RTsToTimeSpanRatio"
   ],
   //
   sortingObjectives: [
     "OK",
     "profit",
-    // "currency",
     "R",
     "novelty",
     "winRate",
+    "maxUpDraw",
+    "maxDrawDown",
     "EV",
-    "buys",
-    "sells"
+    "RTs"
   ],
   inputs: [
     {
@@ -89,7 +87,7 @@ exports.traderConfig = {
   //Threshold for network signal output to be interpreted as going short
   shortThresh: 0,
   // position size limits
-  maxPositions: 25,
+  maxPositions: 250,
   minPositionSize: 0.05,
   maxPositionSize: 1.0,
   //Fees and slippage used for calculating pnl

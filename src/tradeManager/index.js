@@ -8,7 +8,6 @@ const TradeManager = {
     {
       longThresh,
       shortThresh,
-      positionChangeThesh,
       maxPositions,
       minPositionSize,
       maxPositionSize,
@@ -66,14 +65,6 @@ const TradeManager = {
 
     this.positions = [];
     this.trades = [];
-
-    //More notes for future me. It may be worth experimenting with inputting current position
-    //information for the model.
-    this.position = {
-      type: "none",
-      size: 0,
-      startCurrency: 0
-    };
   },
 
   doLong: function(signal, amount, [, , , close, , startTime]) {
@@ -82,8 +73,6 @@ const TradeManager = {
         this.minPositionSize +
         (this.maxPositionSize - this.minPositionSize) *
           (Math.min(1, Math.max(-1, amount)) * 0.5 + 0.5);
-
-      const quantity = (change * (1 - (this.fees + this.slippage))) / close;
 
       if (
         signal > 0 &&
@@ -105,7 +94,7 @@ const TradeManager = {
 
         quantity *= 1 - (this.fees + this.slippage);
 
-        if (quantity > this.minQuantity) {
+        if (quantity >= this.minQuantity) {
           this.currency -= change;
           this.avgPosAdd += changeAmt;
 
@@ -124,50 +113,41 @@ const TradeManager = {
             investment: change
           });
         }
-      } else if (signal < 0 && this.asset > 0 && this.positions.length) {
+      } else if (signal < 0 && this.asset > 0 && this.positions.length > 0) {
         const { investment, quantity } = this.positions.shift();
         let change = quantity;
 
-        changeAmt =
-          changeAmt * (1 - this.positionChangeThresh) +
-          this.positionChangeThresh;
-        let change = this.asset * changeAmt;
-        change = Math.max(this.asset * changeAmt, this.minQuantity);
-        change = Math.min(this.asset, change);
-
         //      if (change >= this.minQuantity) {
-        if (true) {
-          change = Math.min(this.asset, change);
-          this.asset -= change;
-          if (this.asset < this.minQuantity) {
-            const sellVal = change * (1 - (this.fees + this.slippage)) * close;
-            this.currency += sellVal;
-            this.avgPosRem += changeAmt;
-            this.trades.push({
-              type: "close",
-              asset: change,
-              currency: sellVal,
-              time: startTime
-            });
+        change = Math.min(this.asset, change);
+        this.asset -= change;
+        {
+          //          if (this.asset >= this.minQuantity) {
+          const sellVal = change * (1 - (this.fees + this.slippage)) * close;
+          this.currency += sellVal;
+          this.avgPosRem += changeAmt;
+          this.trades.push({
+            type: "close",
+            asset: change,
+            currency: sellVal,
+            time: startTime
+          });
 
-            const deltaValue = sellVal / investment - 1;
-
-            if (deltaValue > 0) {
-              this.avgWin += deltaValue;
-              this.upDraw += deltaValue;
-              this.maxDrawDown = Math.min(this.maxDrawDown, this.drawDown);
-              this.drawDown = 1;
-              this.tradesWon++;
-            } else if (deltaValue < 0) {
-              this.avgLoss += deltaValue;
-              this.drawDown += deltaValue;
-              this.maxUpDraw = Math.max(this.maxUpDraw, this.upDraw);
-              this.upDraw = 1;
-              this.tradesLost++;
-            }
-
-            this.sells++;
+          const deltaValue = sellVal / investment - 1;
+          if (deltaValue > 0) {
+            this.avgWin += deltaValue;
+            this.upDraw += deltaValue;
+            this.maxDrawDown = Math.min(this.maxDrawDown, this.drawDown);
+            this.drawDown = 1;
+            this.tradesWon++;
+          } else if (deltaValue < 0) {
+            this.avgLoss += deltaValue;
+            this.drawDown += deltaValue;
+            this.maxUpDraw = Math.max(this.maxUpDraw, this.upDraw);
+            this.upDraw = 1;
+            this.tradesLost++;
           }
+
+          this.sells++;
         }
       }
       if (this.currency < 0 || this.asset < 0) {
