@@ -122,7 +122,7 @@ const NeatTrainer = {
           16
         );
         if (
-          !this.parentPopulation.some(genome => offspring.hash === genome.hash)
+          !this.parentPopulation.some(({ hash }) => offspring.hash === hash)
         ) {
           return offspring;
         }
@@ -134,11 +134,11 @@ const NeatTrainer = {
       .map(getUniqueOffspring);
 
     if (this.neatConfig.discardDuplicateGenomes) {
-      this.neat.population = this.neat.population.filter((genome1, index) =>
-        this.neat.population.some(
-          (genome2, index2) =>
-            !(index2 > index && genome1.hash === genome2.hash)
-        )
+      this.neat.population = this.neat.population.filter(
+        ({ hash: hash1 }, index) =>
+          this.neat.population.some(
+            ({ hash }, index2) => !(index2 > index && hash1 === hash)
+          )
       );
     }
 
@@ -165,6 +165,7 @@ const NeatTrainer = {
         "Win%",
         "DrDn",
         "UpDr",
+        "Nov",
         "  ",
         "Profit",
         "RTs",
@@ -187,6 +188,7 @@ const NeatTrainer = {
           (100 * g.stats.winRate).toFixed(2),
           g.stats.maxDrawDown.toFixed(2),
           g.stats.maxUpDraw.toFixed(2),
+          g.stats.novelty.toFixed(2),
           "Test".charAt(index),
           sign((100 * g.testStats.profit).toFixed(2)) + "%",
           g.testStats.RTsPerMonth.toFixed(2),
@@ -262,6 +264,8 @@ const NeatTrainer = {
     });
   },
 
+  normalizeNoveltySearchObjectives: function(obj1, obj2) {},
+
   evaluate: function(results) {
     this.nameGenomes();
 
@@ -278,13 +282,13 @@ const NeatTrainer = {
     });
 
     // process candidate population
-    // TODO: would prefer hash comparisons of genomes instead
 
     this.candidatePopulation = [
       ...this.candidatePopulation,
       ...this.neat.population.filter(genome1 => {
-        return !this.candidatePopulation.some(
-          genome2 => genome1.hash === genome2.hash
+        return (
+          !this.candidatePopulation.some(({ hash }) => genome1.hash === hash) &&
+          (genome1.stats.OK && genome1.testStats.OK)
         );
       })
     ];
@@ -294,20 +298,20 @@ const NeatTrainer = {
       this.candidatePopulation
     );
 
-    GBOS(candidatesToSort).forEach((rank, index) => {
-      this.candidatePopulation[index].rank = rank;
-    });
+    if (candidatesToSort.length) {
+      GBOS(candidatesToSort).forEach((rank, index) => {
+        this.candidatePopulation[index].rank = rank;
+      });
 
-    this.candidatePopulation.sort((a, b) => a.rank - b.rank);
+      this.candidatePopulation.sort((a, b) => a.rank - b.rank);
 
-    this.candidatePopulation = this.candidatePopulation.filter(
-      ({ stats, testStats }) => stats.OK && testStats.OK
-    );
-
-    if (
-      this.candidatePopulation.length > this.neatConfig.candidatePopulationSize
-    )
-      this.candidatePopulation.length = this.neatConfig.candidatePopulationSize;
+      if (
+        this.candidatePopulation.length >
+        this.neatConfig.candidatePopulationSize
+      ) {
+        this.candidatePopulation.length = this.neatConfig.candidatePopulationSize;
+      }
+    }
 
     // perform novelty search & sorting
     // merging parent population with current generation population guarantees elitism
@@ -345,8 +349,8 @@ const NeatTrainer = {
     const sorted = GBOS(toSort);
     sorted.forEach((rank, index) => {
       this.neat.population[index].score =
-        this.neat.population[index].stats.RTs > 0 &&
-        this.neat.population[index].testStats.RTs > 0
+        this.neat.population[index].stats.RTs &&
+        this.neat.population[index].testStats.RTs
           ? -rank
           : -Infinity;
 
@@ -504,7 +508,7 @@ const NeatTrainer = {
           popsize: this.neatConfig.populationSize,
           mutationRate: this.neatConfig.mutationRate,
           mutationAmount: this.neatConfig.mutationAmount,
-          selection: methods.selection.POWER,
+          selection: methods.selection.TOURNAMENT,
           network: new architect.Random(
             this.normalisedData.length,
             0,

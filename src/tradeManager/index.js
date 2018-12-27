@@ -91,7 +91,7 @@ const TradeManager = {
         signal > 0 &&
         this.currency > 0 &&
         changeAmt > 0 &&
-        this.positions < this.maxPositions
+        this.positions.length < this.maxPositions
       ) {
         let change = this.currency * changeAmt;
 
@@ -290,8 +290,8 @@ const TradeManager = {
       avgPosAdd: safeDiv(this.avgPosAdd, this.buys),
       avgPosRem: safeDiv(this.avgPosRem, this.sells),
 
-      R: R,
-      winRate: winRate,
+      R,
+      winRate,
 
       maxUpDraw: this.maxUpDraw - 1,
       maxDrawDown: this.maxDrawDown - 1,
@@ -303,7 +303,7 @@ const TradeManager = {
       genomeGates: this.genome.gates.length / 100,
       genomeSelfConnections: this.genome.selfconns.length / 100,
 
-      OK: profit > 0 && R > 1 && RTs > 0 ? 1 : 0
+      OK: profit > 0 && R > 0 && RTs > 0 ? 1 : 0
 
       // trades: profit>0?this.trades:[]
     };
