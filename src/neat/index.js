@@ -48,6 +48,8 @@ const mutations = [
   mutation.MOD_WEIGHT,
   mutation.MOD_BIAS,
   mutation.MOD_ACTIVATION,
+  mutation.MOD_WEIGHT,
+  mutation.MOD_BIAS,
   mutation.MOD_ACTIVATION,
 
   mutation.ADD_GATE,
@@ -578,6 +580,16 @@ const NeatTrainer = {
 
     Logger.debug(`Training time span: ${trainTimeSpan.toFixed(2)} months`);
     Logger.debug(`Testing time span: ${testTimeSpan.toFixed(2)} months`);
+
+    const avgBarLength =
+      this.data[5]
+        .map((_, index, data) => data[index + 1] - data[index])
+        .slice(0, -1)
+        .reduce((acc, val) => acc + val) /
+      (this.data[5].length - 1) /
+      (1000 * 60);
+
+    Logger.debug(`Average bar length: ${avgBarLength.toFixed(3)} minutes`);
 
     while (true) {
       this.generation++;

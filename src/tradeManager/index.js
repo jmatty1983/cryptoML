@@ -51,8 +51,7 @@ const TradeManager = {
 
     this.candleCount = 0;
 
-    this.avgPosAdd = 0;
-    this.avgPosRem = 0;
+    this.avgPosSize = 0;
 
     this.exposure = 0;
     this.avgExpDepth = 0;
@@ -61,6 +60,9 @@ const TradeManager = {
     this.maxDrawDown = 1;
     this.upDraw = 1;
     this.maxUpDraw = 1;
+
+    this.maxProfit = 0;
+    this.maxLoss = 0;
     this.minQuantity = this.stepSize = 0.000001; // BTC 0.00000100; // XRP 0.10000000
 
     this.positions = [];
@@ -124,7 +126,6 @@ const TradeManager = {
           //          if (this.asset >= this.minQuantity) {
           const sellVal = change * (1 - (this.fees + this.slippage)) * close;
           this.currency += sellVal;
-          this.avgPosRem += changeAmt;
           this.trades.push({
             type: "close",
             asset: change,
@@ -133,6 +134,10 @@ const TradeManager = {
           });
 
           const deltaValue = sellVal / investment - 1;
+
+          this.maxProfit = Math.max(deltaValue, this.maxProfit);
+          this.maxLoss = Math.min(deltaValue, this.maxLoss);
+
           if (deltaValue > 0) {
             this.avgWin += deltaValue;
             this.upDraw += deltaValue;
@@ -267,14 +272,16 @@ const TradeManager = {
       wins: this.tradesWon / timeSpanInMonths,
       losses: this.tradesLost / timeSpanInMonths,
 
-      avgPosAdd: safeDiv(this.avgPosAdd, this.buys),
-      avgPosRem: safeDiv(this.avgPosRem, this.sells),
+      avgPosSize: safeDiv(this.avgPosSize, this.buys),
 
       R,
       winRate,
 
       maxUpDraw: this.maxUpDraw - 1,
       maxDrawDown: this.maxDrawDown - 1,
+
+      maxProfit: this.maxProfit,
+      maxLoss: this.maxLoss,
 
       exposure: this.exposure / this.candleCount,
 
