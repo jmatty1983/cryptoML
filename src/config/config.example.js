@@ -13,8 +13,7 @@ exports.neatConfig = {
 
   discardDuplicateGenomes: false,
 
-  // 1 - Long Buy Sell & Pos
-  // 2 - Long+Short Buy Sell & Pos
+  // 2 - Long Buy Sell & Position Size
   outputSize: 2,
 
   candidatePopulationSize: 32,
@@ -22,11 +21,11 @@ exports.neatConfig = {
   // novelty search related
   noveltySearchDistanceOrder: 1.8,
   noveltySearchAddRandom: 4,
-  noveltySearchAddFittest: 4,
+  noveltySearchAddFittest: 0,
   noveltySearchObjectives: [
     "winRate",
     "exposure",
-    "avgPosAdd",
+    "avgPosSize",
     "genomeNodes",
     "genomeConnections",
     "genomeGates",
@@ -44,6 +43,8 @@ exports.neatConfig = {
     "winRate",
     "maxUpDraw",
     "maxDrawDown",
+    "maxProfit",
+    "maxLoss",
     "EV",
     "RTs"
   ],
@@ -77,6 +78,11 @@ exports.indicatorConfig = [
     params: [9],
     //just a place holder for now. Will allow different normalising functions to be applied
     //to different indicators
+    normFunc: "percentageChangeLog2"
+  },
+  {
+    name: "kf",
+    params: [{ R: 0.01, Q: 3, A: 1.05, index: 3 }],
     normFunc: "percentageChangeLog2"
   }
 ];
