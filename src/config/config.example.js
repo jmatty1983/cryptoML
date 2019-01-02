@@ -82,7 +82,7 @@ exports.indicatorConfig = [
   },
   {
     name: "kf",
-    params: [{ R: 0.01, Q: 3, A: 1.05, index: 3 }],
+    params: [{ R: 0.02, Q: 3, A: 1.15, index: 3 }],
     normFunc: "percentageChangeLog2"
   }
 ];

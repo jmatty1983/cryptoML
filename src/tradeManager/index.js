@@ -56,10 +56,10 @@ const TradeManager = {
     this.exposure = 0;
     this.avgExpDepth = 0;
 
-    this.drawDown = 1;
-    this.maxDrawDown = 1;
-    this.upDraw = 1;
-    this.maxUpDraw = 1;
+    this.drawDown = 0;
+    this.maxDrawDown = 0;
+    this.upDraw = 0;
+    this.maxUpDraw = 0;
 
     this.maxProfit = 0;
     this.maxLoss = 0;
@@ -103,52 +103,49 @@ const TradeManager = {
           this.asset += quantity;
           this.buys++;
 
-          this.trades.push({
+          /*          this.trades.push({
             type: "open",
             asset: quantity,
             currency: change,
             time: startTime
-          });
+          });*/
 
           this.positions.push({
             quantity: quantity,
-            investment: change
+            currency: change,
+            depth: changeAmt
           });
         }
       } else if (signal < 0 && this.asset > 0 && this.positions.length > 0) {
-        const { investment, quantity } = this.positions.shift();
-        let change = quantity;
-
-        //      if (change >= this.minQuantity) {
-        change = Math.min(this.asset, change);
+        const { currency, quantity, depth } = this.positions.shift();
+        let change = Math.min(this.asset, quantity);
         this.asset -= change;
         {
-          //          if (this.asset >= this.minQuantity) {
           const sellVal = change * (1 - (this.fees + this.slippage)) * close;
           this.currency += sellVal;
-          this.trades.push({
+
+          /*          this.trades.push({
             type: "close",
             asset: change,
             currency: sellVal,
             time: startTime
-          });
+          });*/
 
-          const deltaValue = sellVal / investment - 1;
+          const deltaValue = sellVal / currency - 1;
 
-          this.maxProfit = Math.max(deltaValue, this.maxProfit);
-          this.maxLoss = Math.min(deltaValue, this.maxLoss);
-
-          if (deltaValue > 0) {
+          if (deltaValue >= 0) {
+            this.maxProfit = Math.max(deltaValue, this.maxProfit);
             this.avgWin += deltaValue;
-            this.upDraw += deltaValue;
+            this.upDraw += deltaValue * depth;
             this.maxDrawDown = Math.min(this.maxDrawDown, this.drawDown);
-            this.drawDown = 1;
+            this.drawDown = 0;
             this.tradesWon++;
           } else if (deltaValue < 0) {
+            this.maxLoss = Math.min(deltaValue, this.maxLoss);
             this.avgLoss += deltaValue;
-            this.drawDown += deltaValue;
+            this.drawDown += deltaValue * depth;
             this.maxUpDraw = Math.max(this.maxUpDraw, this.upDraw);
-            this.upDraw = 1;
+            this.upDraw = 0;
             this.tradesLost++;
           }
 
@@ -277,8 +274,8 @@ const TradeManager = {
       R,
       winRate,
 
-      maxUpDraw: this.maxUpDraw - 1,
-      maxDrawDown: this.maxDrawDown - 1,
+      maxUpDraw: this.maxUpDraw,
+      maxDrawDown: this.maxDrawDown,
 
       maxProfit: this.maxProfit,
       maxLoss: this.maxLoss,

@@ -326,34 +326,34 @@ const NeatTrainer = {
       "noveltySearchObjectives",
       this.neat.population
     );
-    const nsArchive = ArrayUtils.getProp(
+    const nsArch = ArrayUtils.getProp(
       "noveltySearchObjectives",
+      this.noveltySearchArchive
+    );
+
+    const lcObj = ArrayUtils.getProp(
+      "localCompetitionObjectives",
+      this.neat.population
+    );
+
+    const lcArch = ArrayUtils.getProp(
+      "localCompetitionObjectives",
       this.noveltySearchArchive
     );
 
     const novelties = noveltySearch(
       nsObj,
-      nsArchive,
+      nsArch,
       this.neatConfig.noveltySearchDistanceOrder || 2
     );
 
-    let counter = 0;
     this.neat.population.forEach((genome, index) => {
       genome.stats.novelty = novelties[index];
-      try {
-        if (!genome.sortingObjectives) {
-          if (results[counter] === undefined) {
-            Logger.debug(`${index} ${novelties[index]}`); //${results})
-          }
-          genome.sortingObjectives = this.neatConfig.sortingObjectives.map(
-            objective => {
-              return -results[counter].trainStats[objective];
-            }
-          ); // maximization of objectives requires a sign flip here
-          counter++;
-        }
-      } catch (e) {
-        // console.log(e)
+      if (!genome.sortingObjectives) {
+        genome.sortingObjectives = this.neatConfig.sortingObjectives.map(
+          objective => -results[index].trainStats[objective]
+        );
+        // maximization of objectives requires a sign flip here
       }
     });
 
@@ -413,10 +413,15 @@ const NeatTrainer = {
       ({ name, normFunc }) =>
         normaliseFunctions[normFunc](this.data[dataToIndex[name]])
     );
-    const normalisedIndicatorData = this.data.slice(6).map((array, index) => {
-      const { normFunc } = indicatorConfig[index];
-      return normaliseFunctions[normFunc](array);
-    });
+    const last = Object.values(dataToIndex).reduce((acc, val) =>
+      Math.max(acc, val)
+    );
+    const normalisedIndicatorData = this.data
+      .slice(last + 1)
+      .map((array, index) => {
+        const { normFunc } = indicatorConfig[index];
+        return normaliseFunctions[normFunc](array);
+      });
 
     return [...normalisedCandleData, ...normalisedIndicatorData];
   },
