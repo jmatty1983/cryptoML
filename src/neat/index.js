@@ -266,8 +266,6 @@ const NeatTrainer = {
     });
   },
 
-  normalizeNoveltySearchObjectives: function(obj1, obj2) {},
-
   evaluate: function(results) {
     // console.log(results)
     this.nameGenomes();
@@ -283,17 +281,13 @@ const NeatTrainer = {
       // genome.stats.OK2 = testStats.OK & trainStats.OK
       // make this conditional, setup in config
       {
-        validateObjectives(this.neatConfig.noveltySearchObjectives, trainStats);
-        validateObjectives(this.neatConfig.sortingObjectives, trainStats);
-        validateObjectives(
-          this.neatConfig.candidateSortingCriteria,
-          trainStats
-        );
-        validateObjectives(this.neatConfig.candidateSortingCriteria, testStats);
-        validateObjectives(
-          this.neatConfig.localCompetitionObjectives,
-          trainStats
-        );
+        [
+          [this.neatConfig.noveltySearchObjectives, trainStats],
+          [this.neatConfig.sortingObjectives, trainStats],
+          [this.neatConfig.candidateSortingCriteria, trainStats],
+          [this.neatConfig.candidateSortingCriteria, testStats],
+          [this.neatConfig.localCompetitionObjectives, trainStats]
+        ].forEach(([obj, stats]) => validateObjectives(obj, stats));
       }
 
       genome.noveltySearchObjectives = this.neatConfig.noveltySearchObjectives.map(
@@ -314,29 +308,27 @@ const NeatTrainer = {
       ...this.neat.population.filter(genome1 => {
         return (
           !this.candidatePopulation.some(({ hash }) => genome1.hash === hash) &&
-          (genome1.stats.OK && genome1.testStats.OK)
+          genome1.stats.OK &&
+          genome1.testStats.OK
         );
       })
     ];
 
-    const candidatesToSort = ArrayUtils.getProp(
-      "candidateSortingObjectives",
-      this.candidatePopulation
-    );
-
-    if (candidatesToSort.length) {
+    if (this.candidatePopulation.length) {
+      const candidatesToSort = ArrayUtils.getProp(
+        "candidateSortingObjectives",
+        this.candidatePopulation
+      );
       GBOS(candidatesToSort).forEach((rank, index) => {
         this.candidatePopulation[index].rank = rank;
       });
 
       this.candidatePopulation.sort((a, b) => a.rank - b.rank);
 
-      if (
-        this.candidatePopulation.length >
-        this.neatConfig.candidatePopulationSize
-      ) {
-        this.candidatePopulation.length = this.neatConfig.candidatePopulationSize;
-      }
+      this.candidatePopulation.length = Math.min(
+        this.neatConfig.candidatePopulationSize,
+        this.candidatePopulation.length
+      );
     }
 
     // perform novelty search & sorting
@@ -396,7 +388,7 @@ const NeatTrainer = {
     const sorted = GBOS(toSort);
     sorted.forEach((rank, index) => {
       this.neat.population[index].score = -rank;
-      if (this.neat.population[index].stats.RTs === 0) {
+      if (this.neat.population[index].stats.profit === 0) {
         this.neat.population[index].score -= 10;
       }
       this.neat.population[index].rank = rank;

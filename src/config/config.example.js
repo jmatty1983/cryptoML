@@ -19,7 +19,8 @@ exports.neatConfig = {
   candidatePopulationSize: 32,
   candidateSortingCriteria: ["profit", "EV", "R", "winRate"],
   // novelty search related
-  noveltySearchDistanceOrder: 1.8,
+  noveltySearchDistanceOrder: 2.0,
+  noveltySearchNormalize: true,
   noveltySearchAddRandom: 4,
   noveltySearchAddFittest: 0,
   noveltySearchObjectives: [
@@ -30,7 +31,6 @@ exports.neatConfig = {
     "genomeConnections",
     "genomeGates",
     "genomeSelfConnections",
-    "buysToTradesRatio",
     "avgExpDepth",
     "RTsToTimeSpanRatio"
   ],
@@ -48,14 +48,12 @@ exports.neatConfig = {
     "profit",
     "R",
     "novelty",
-    "winRate",
     "maxUpDraw",
     "maxDrawDown",
     "maxProfit",
-    "maxLoss",
-    "EV",
-    "RTs"
+    "maxLoss"
   ],
+
   inputs: [
     {
       name: "opens",

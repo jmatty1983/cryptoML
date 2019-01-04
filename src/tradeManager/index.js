@@ -197,28 +197,12 @@ const TradeManager = {
     this.candleCount++;
   },
 
-  runTrades: function() {
-    this.opens.forEach((x, index) => {
-      const candleInput = this.networkInput.reduce(
-        (array, item) => [...array, item[index]],
-        []
-      );
-      const candle = this.data.reduce(
-        (array, item) => [...array, item[index]],
-        []
-      );
-      const output = this.genome.noTraceActivate(candleInput);
-      // if( Math.random()<0.1) Logger.debug(output)
-      this.handleCandle(candle, output);
-    });
+  calcStats: function() {
+    let safeDiv = (num, denom) =>
+      Math.abs(denom) <= Number.EPSILON ? 0 : num / denom;
 
     this.maxDrawDown = Math.min(this.maxDrawDown, this.drawDown);
     this.maxUpDraw = Math.max(this.maxUpDraw, this.upDraw);
-    // console.log(this.doLong,this.closes[this.closes.length - 1])
-    // this.doLong(-1, 1, [0,0,0,this.closes[this.closes.length - 1]]);
-
-    let safeDiv = (num, denom) =>
-      Math.abs(denom) <= Number.EPSILON ? 0 : num / denom;
 
     const value = this.getValue(this.closes[this.closes.length - 1]);
     this.currency = value;
@@ -235,10 +219,8 @@ const TradeManager = {
     const EV = winRate * this.avgWin + (1 - winRate) * this.avgLoss;
     const R = safeDiv(this.avgWin, -this.avgLoss);
 
-    const RTs = this.sells; //(this.buys + this.sells) / 2
+    const RTs = this.sells;
     const RTsToTimeSpanRatio = RTs / this.candleCount;
-
-    // Logger.debug(JSON.stringify(this.trades))
 
     this.avgExpDepth = safeDiv(this.avgExpDepth, this.exposure);
 
@@ -265,7 +247,6 @@ const TradeManager = {
       RTs,
       RTsPerMonth: RTs / timeSpanInMonths,
       RTsToTimeSpanRatio,
-      // RTratio: ((this.buys+this.sells)/2)/this.candleCount
 
       wins: this.tradesWon / timeSpanInMonths,
       losses: this.tradesLost / timeSpanInMonths,
@@ -283,24 +264,35 @@ const TradeManager = {
 
       exposure: this.exposure / this.candleCount,
 
-      genomeNodes: this.genome.nodes.length / 100,
-      genomeConnections: this.genome.connections.length / 100,
-      genomeGates: this.genome.gates.length / 100,
-      genomeSelfConnections: this.genome.selfconns.length / 100,
+      genomeNodes: this.genome.nodes.length,
+      genomeConnections: this.genome.connections.length,
+      genomeGates: this.genome.gates.length,
+      genomeSelfConnections: this.genome.selfconns.length,
 
       OK: profit > 0 && R > 1 && RTs > 0 ? 1 : 0,
 
       novelty: 0
-
-      // trades: profit>0?this.trades:[]
     };
 
-    /*    if( profit < 0 && winRate === 1 ) {
-      console.log('wtf? ' + JSON.stringify(ret))
-      assert(false)
-    }*/
-
     return ret;
+  },
+
+  runTrades: function() {
+    this.opens.forEach((x, index) => {
+      const candleInput = this.networkInput.reduce(
+        (array, item) => [...array, item[index]],
+        []
+      );
+      const candle = this.data.reduce(
+        (array, item) => [...array, item[index]],
+        []
+      );
+      const output = this.genome.noTraceActivate(candleInput);
+      // if( Math.random()<0.1) Logger.debug(output)
+      this.handleCandle(candle, output);
+    });
+
+    return this.calcStats();
   }
 };
 
