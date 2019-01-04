@@ -6,7 +6,7 @@ const fs = require("fs");
 const GBOS = require("GBOS-js");
 const histc = require("histc");
 const { Neat, methods, architect } = require("neataptic");
-const noveltySearch = require("./noveltySearch");
+const noveltySearch = require("./noveltySearch/index.js");
 const os = require("os");
 const phonetic = require("phonetic");
 const table = require("table");
@@ -271,18 +271,40 @@ const NeatTrainer = {
   evaluate: function(results) {
     // console.log(results)
     this.nameGenomes();
+    let validateObjectives = (objs, stats) =>
+      objs.forEach(obj =>
+        assert(!isNaN(stats[obj]) && stats[obj] !== undefined)
+      );
 
     results.forEach(({ trainStats, testStats, id }) => {
       let genome = this.neat.population[id];
       genome.stats = trainStats;
       genome.testStats = testStats;
       // genome.stats.OK2 = testStats.OK & trainStats.OK
+      // make this conditional, setup in config
+      {
+        validateObjectives(this.neatConfig.noveltySearchObjectives, trainStats);
+        validateObjectives(this.neatConfig.sortingObjectives, trainStats);
+        validateObjectives(
+          this.neatConfig.candidateSortingCriteria,
+          trainStats
+        );
+        validateObjectives(this.neatConfig.candidateSortingCriteria, testStats);
+        validateObjectives(
+          this.neatConfig.localCompetitionObjectives,
+          trainStats
+        );
+      }
+
       genome.noveltySearchObjectives = this.neatConfig.noveltySearchObjectives.map(
         objective => trainStats[objective]
       );
       genome.candidateSortingObjectives = this.neatConfig.candidateSortingCriteria
         .map(objective => [-testStats[objective], -trainStats[objective]])
         .reduce((acc, val) => [...acc, ...val], []);
+      genome.localCompetitionObjectives = this.neatConfig.localCompetitionObjectives.map(
+        objective => trainStats[objective]
+      );
     });
 
     // process candidate population
@@ -326,7 +348,7 @@ const NeatTrainer = {
       "noveltySearchObjectives",
       this.neat.population
     );
-    const nsArch = ArrayUtils.getProp(
+    const nsArchive = ArrayUtils.getProp(
       "noveltySearchObjectives",
       this.noveltySearchArchive
     );
@@ -335,25 +357,28 @@ const NeatTrainer = {
       "localCompetitionObjectives",
       this.neat.population
     );
-
-    const lcArch = ArrayUtils.getProp(
+    const lcArchive = ArrayUtils.getProp(
       "localCompetitionObjectives",
       this.noveltySearchArchive
     );
 
-    const novelties = noveltySearch(
+    const { novelties, lcs } = noveltySearch(
       nsObj,
-      nsArch,
+      nsArchive,
+      lcObj,
+      lcArchive,
       this.neatConfig.noveltySearchDistanceOrder || 2
     );
 
     this.neat.population.forEach((genome, index) => {
       genome.stats.novelty = novelties[index];
-      if (!genome.sortingObjectives) {
-        genome.sortingObjectives = this.neatConfig.sortingObjectives.map(
-          objective => -results[index].trainStats[objective]
-        );
-        // maximization of objectives requires a sign flip here
+      if (index < this.neatConfig.populationSize) {
+        genome.sortingObjectives = [
+          ...this.neatConfig.sortingObjectives.map(
+            objective => -results[index].trainStats[objective]
+          ),
+          ...lcs[index]
+        ];
       }
     });
 
@@ -370,7 +395,10 @@ const NeatTrainer = {
     );
     const sorted = GBOS(toSort);
     sorted.forEach((rank, index) => {
-      this.neat.population[index].score = -rank + Math.random();
+      this.neat.population[index].score = -rank;
+      if (this.neat.population[index].stats.RTs === 0) {
+        this.neat.population[index].score -= 10;
+      }
       this.neat.population[index].rank = rank;
     });
 

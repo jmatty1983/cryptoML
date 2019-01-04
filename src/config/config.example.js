@@ -34,6 +34,14 @@ exports.neatConfig = {
     "avgExpDepth",
     "RTsToTimeSpanRatio"
   ],
+  localCompetitionObjectives: [
+    "profit",
+    "R",
+    "maxProfit",
+    "maxLoss",
+    "maxUpDraw",
+    "maxDrawDown"
+  ],
   //
   sortingObjectives: [
     "OK",

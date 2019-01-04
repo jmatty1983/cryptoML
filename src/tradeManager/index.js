@@ -1,4 +1,5 @@
 const { Logger } = require("../logger");
+const tradeStats = require("./tradeStats");
 
 const TradeManager = {
   init: function(
@@ -287,7 +288,9 @@ const TradeManager = {
       genomeGates: this.genome.gates.length / 100,
       genomeSelfConnections: this.genome.selfconns.length / 100,
 
-      OK: profit > 0 && R > 0 && RTs > 0 ? 1 : 0
+      OK: profit > 0 && R > 1 && RTs > 0 ? 1 : 0,
+
+      novelty: 0
 
       // trades: profit>0?this.trades:[]
     };
