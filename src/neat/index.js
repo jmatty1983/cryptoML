@@ -9,13 +9,16 @@ const { Neat, methods, architect } = require("neataptic");
 const noveltySearch = require("./noveltySearch/index.js");
 const os = require("os");
 const phonetic = require("phonetic");
-const table = require("table");
+const displayStats = require("./displayDebugStats");
+
 const { Worker, MessageChannel } = require("worker_threads");
 
 const normaliseFunctions = {
   percentageChangeLog2: require("./normFuncs").percentChange
     .percentageChangeLog2
 };
+
+// console.log(normaliseFunctions)
 
 const ArrayUtils = require("../lib/array");
 const {
@@ -30,7 +33,7 @@ const { Logger } = require("../logger");
 
 const mutation = methods.mutation;
 
-mutation.SWAP_NODES.mutateOutput = false;
+// mutation.SWAP_NODES.mutateOutput = false;
 
 const mutations = [
   mutation.ADD_NODE,
@@ -131,94 +134,23 @@ const NeatTrainer = {
       );
     }
 
-    let displayPopulationStats = genomes => {
-      const tableOptions = {
-        columnDefault: {
-          paddingLeft: 0,
-          paddingRight: 0
-        },
-        border: table.getBorderCharacters(`void`),
-        columnDefault: {
-          alignment: "right"
-        },
-        drawHorizontalLine: (index, size) => {
-          return index < 1 || index === size;
-        }
-      };
+    this.eventEmitter.emit("update", {
+      generation: this.generation,
+      candidates: this.candidatePopulation,
+      parents: this.parentPopulation
+    });
 
-      const header = [
-        "Gen " + this.generation,
-        "  ",
-        "PnL",
-        "RTs",
-        "Win%",
-        "DrDn",
-        "UpDr",
-        "Nov",
-        "  ",
-        "PnL",
-        "RTs",
-        "Win%",
-        "DrDn",
-        "UpDr",
-        " ",
-        "Name"
-      ];
-
-      let sign = value =>
-        Number(value) > 0 ? "+" + Number(value) : Number(value);
-
-      const d = genomes.map((g, index) => {
-        return [
-          g.generation,
-          "Train".charAt(index),
-          sign((100 * g.stats.profit).toFixed(1)) + "%",
-          g.stats.RTsPerMonth.toFixed(2),
-          (100 * g.stats.winRate).toFixed(2),
-          g.stats.maxDrawDown.toFixed(2),
-          g.stats.maxUpDraw.toFixed(2),
-          g.stats.novelty.toFixed(2),
-          "Test".charAt(index),
-          sign((100 * g.testStats.profit).toFixed(2)) + "%",
-          g.testStats.RTsPerMonth.toFixed(2),
-          (100 * g.testStats.winRate).toFixed(1),
-          g.testStats.maxDrawDown.toFixed(2),
-          g.testStats.maxUpDraw.toFixed(2),
-          " ",
-          g.name
-        ];
-      });
-
-      if (d.length) {
-        table
-          .table([[...header], ...d], tableOptions)
-          .slice(1, -1)
-          .split("\n")
-          .forEach(Logger.debug);
-      } else {
-        Logger.debug(`No candidates found in generation ${this.generation}`);
-      }
-    };
-    {
-      this.eventEmitter.emit("update", {
-        generation: this.generation,
-        candidates: this.candidatePopulation,
-        parents: this.parentPopulation
-      });
-      if (this.candidatePopulation.length) {
-        displayPopulationStats(
-          this.candidatePopulation.filter((_, index) => index < 8)
-        );
-      } else {
-        Logger.debug(
-          `No candidates discovered in generation ${this.generation}`
-        );
-        Logger.debug("Meanwhile in general population");
-        displayPopulationStats(
-          this.parentPopulation.filter((_, index) => index < 8)
-        );
-      }
+    if (this.candidatePopulation.length) {
+      Logger.debug(`Candidates: ${this.candidatePopulation.length}`);
+      displayStats(this.candidatePopulation.slice(0, 8), this.generation);
     }
+    displayStats(
+      this.parentPopulation.slice(
+        0,
+        16 - Math.min(8, this.candidatePopulation.length)
+      ),
+      this.generation
+    );
   },
 
   getEventEmitter: function() {
@@ -269,18 +201,18 @@ const NeatTrainer = {
   evaluate: function(results) {
     // console.log(results)
     this.nameGenomes();
-    let validateObjectives = (objs, stats) =>
-      objs.forEach(obj =>
-        assert(!isNaN(stats[obj]) && stats[obj] !== undefined)
-      );
 
     results.forEach(({ trainStats, testStats, id }) => {
       let genome = this.neat.population[id];
       genome.stats = trainStats;
       genome.testStats = testStats;
-      // genome.stats.OK2 = testStats.OK & trainStats.OK
+      genome.stats.OK2 = Number(testStats.OK & trainStats.OK);
       // make this conditional, setup in config
       {
+        let validateObjectives = (objs, stats) =>
+          objs.forEach(obj =>
+            assert(!isNaN(stats[obj]) && stats[obj] !== undefined)
+          );
         [
           [this.neatConfig.noveltySearchObjectives, trainStats],
           [this.neatConfig.sortingObjectives, trainStats],
@@ -305,13 +237,11 @@ const NeatTrainer = {
 
     this.candidatePopulation = [
       ...this.candidatePopulation,
-      ...this.neat.population.filter(genome1 => {
-        return (
-          !this.candidatePopulation.some(({ hash }) => genome1.hash === hash) &&
-          genome1.stats.OK &&
-          genome1.testStats.OK
-        );
-      })
+      ...this.neat.population.filter(
+        genome =>
+          !this.candidatePopulation.some(({ hash }) => genome.hash === hash) &&
+          genome.stats.OK2
+      )
     ];
 
     if (this.candidatePopulation.length) {
@@ -334,7 +264,15 @@ const NeatTrainer = {
     // perform novelty search & sorting
     // merging parent population with current generation population guarantees elitism
 
-    this.neat.population = [...this.neat.population, ...this.parentPopulation];
+    this.neat.population = [...this.parentPopulation, ...this.neat.population];
+
+    /*    const index =  Math.floor(Math.random()*this.parentPopulation.length)
+    this.neat.population = 
+    [
+      ...this.neat.population,
+      ...this.parentPopulation.splice(index),
+      ...this.parentPopulation.splice(0,index)
+    ]*/
 
     const nsObj = ArrayUtils.getProp(
       "noveltySearchObjectives",
@@ -359,27 +297,19 @@ const NeatTrainer = {
       nsArchive,
       lcObj,
       lcArchive,
-      this.neatConfig.noveltySearchDistanceOrder || 2
+      { p: this.neatConfig.noveltySearchDistanceOrder }
     );
 
     this.neat.population.forEach((genome, index) => {
       genome.stats.novelty = novelties[index];
-      if (index < this.neatConfig.populationSize) {
-        genome.sortingObjectives = [
-          ...this.neatConfig.sortingObjectives.map(
-            objective => -results[index].trainStats[objective]
-          ),
-          ...lcs[index]
-        ];
-      }
-    });
-
-    if (this.neat.population.length > this.neatConfig.populationSize) {
-      this.neat.population = [
-        ...this.neat.population.slice(this.neatConfig.populationSize, -1),
-        ...this.neat.population.slice(0, this.neatConfig.populationSize)
+      genome.stats.lcs = lcs[index];
+      genome.sortingObjectives = [
+        ...this.neatConfig.sortingObjectives.map(
+          objective => -genome.stats[objective]
+        ),
+        ...lcs[index].map(value => -value)
       ];
-    }
+    });
 
     const toSort = ArrayUtils.getProp(
       "sortingObjectives",
@@ -387,11 +317,8 @@ const NeatTrainer = {
     );
     const sorted = GBOS(toSort);
     sorted.forEach((rank, index) => {
-      this.neat.population[index].score = -rank;
-      if (this.neat.population[index].stats.profit === 0) {
-        this.neat.population[index].score -= 10;
-      }
-      this.neat.population[index].rank = rank;
+      const genome = this.neat.population[index];
+      genome.score = -rank; // + genome.stats.lcs[0]
     });
 
     this.neat.sort();
@@ -440,7 +367,7 @@ const NeatTrainer = {
       .slice(last + 1)
       .map((array, index) => {
         const { normFunc } = indicatorConfig[index];
-        return normaliseFunctions[normFunc](array);
+        return normFunc ? normaliseFunctions[normFunc](array) : array;
       });
 
     return [...normalisedCandleData, ...normalisedIndicatorData];

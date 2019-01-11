@@ -1,10 +1,10 @@
 const ArrayUtils = require("../../lib/array");
 
-const SMA = (length, [, , , closes]) =>
-  closes.reduce((sma, item, idx, array) => {
-    if (idx + 1 >= length) {
-      sma.push(ArrayUtils.average(array.slice(idx + 1 - length, idx + 1)));
-    }
+const SMA = ({ length, index = 3 }, candles) =>
+  candles[index].reduce((sma, item, idx, array) => {
+    sma.push(
+      ArrayUtils.average(array.slice(Math.max(0, idx + 1 - length), idx + 1))
+    );
     return sma;
   }, []);
 

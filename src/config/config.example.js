@@ -16,8 +16,8 @@ exports.neatConfig = {
   // 2 - Long Buy Sell & Position Size
   outputSize: 2,
 
-  candidatePopulationSize: 32,
-  candidateSortingCriteria: ["profit", "EV", "R", "winRate"],
+  candidatePopulationSize: 256,
+  candidateSortingCriteria: ["profit", "maxDrawDown", "winRate"],
   // novelty search related
   noveltySearchDistanceOrder: 2.0,
   noveltySearchNormalize: true,
@@ -27,32 +27,29 @@ exports.neatConfig = {
     "winRate",
     "exposure",
     "avgPosSize",
+    "avgWin",
+    "avgLoss",
+    "maxProfit",
+    "maxLoss",
+    "maxDrawDown",
+    "maxUpDraw",
     "genomeNodes",
     "genomeConnections",
     "genomeGates",
     "genomeSelfConnections",
     "avgExpDepth",
-    "RTsToTimeSpanRatio"
+    "buys",
+    "sells"
   ],
   localCompetitionObjectives: [
     "profit",
-    "R",
-    "maxProfit",
-    "maxLoss",
-    "maxUpDraw",
+    "winRate",
+    "sharpe",
+    "avgWin",
     "maxDrawDown"
   ],
   //
-  sortingObjectives: [
-    "OK",
-    "profit",
-    "R",
-    "novelty",
-    "maxUpDraw",
-    "maxDrawDown",
-    "maxProfit",
-    "maxLoss"
-  ],
+  sortingObjectives: ["profit", "novelty", "sharpe", "maxDrawDown"],
 
   inputs: [
     {
@@ -81,9 +78,7 @@ exports.neatConfig = {
 exports.indicatorConfig = [
   {
     name: "sma",
-    params: [9],
-    //just a place holder for now. Will allow different normalising functions to be applied
-    //to different indicators
+    params: [{ length: 5, index: 3 }],
     normFunc: "percentageChangeLog2"
   },
   {
@@ -95,12 +90,12 @@ exports.indicatorConfig = [
 
 exports.traderConfig = {
   //Threshold for network signal output to be interpreted as going long
-  longThresh: 1 / 32,
+  longThresh: 1 / 256,
   //Threshold for network signal output to be interpreted as going short
   shortThresh: 0,
-  // position size limits
-  maxPositions: 250,
-  minPositionSize: 0.05,
+  // position limits
+  maxPositions: 20,
+  minPositionSize: 0.1,
   maxPositionSize: 1.0,
   //Fees and slippage used for calculating pnl
   fees: 0.001,

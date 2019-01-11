@@ -80,10 +80,10 @@ function noveltySearch(nsObjs, nsArchive, lcObjs, lcArchive, opts = {}) {
   const distances = nsObjs.map(solution =>
     collated
       .map((f, index) => {
-        return { index, distance: minkowskiDistance(solution, f, p) };
+        return [index, minkowskiDistance(solution, f, p)];
       })
-      .sort((a, b) => a.distance - b.distance)
-      .filter(a => a.distance > 0)
+      .sort((a, b) => a[1] - b[1])
+      // .filter(a => a[1])
       .slice(0, kNN)
   );
 
@@ -91,15 +91,13 @@ function noveltySearch(nsObjs, nsArchive, lcObjs, lcArchive, opts = {}) {
   const lcs = distances.map((item, idx) =>
     lc[0].map(
       (_, col) =>
-        item.reduce(
-          (acc, val) => acc + (lc[idx][col] > lc[val.index][col]),
-          0
-        ) / kNN
+        item.reduce((acc, val) => acc + (lc[idx][col] > lc[val[0]][col]), 0) /
+        kNN
     )
   );
 
   const novelties = distances.map(
-    item => item.reduce((acc, cur) => acc + cur.distance, 0) / kNN
+    item => item.reduce((acc, cur) => acc + cur[1], 0) / kNN
   );
 
   return { novelties, lcs };
