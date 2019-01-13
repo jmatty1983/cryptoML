@@ -18,6 +18,7 @@ const TradeManager = {
     }
   ) {
     this.genome = genome;
+    this.genome.clear();
 
     const [opens, highs, lows, closes, volumes, start] = data;
     this.data = data;
