@@ -207,6 +207,15 @@ const NeatTrainer = {
       genome.stats = trainStats;
       genome.testStats = testStats;
       genome.stats.OK2 = Number(testStats.OK & trainStats.OK);
+      genome.stats.v2mean =
+        (genome.stats.v2ratio + genome.testStats.v2ratio) / 2;
+      genome.stats.v2deviation = -Math.sqrt(
+        Math.pow(genome.stats.v2mean - genome.stats.v2ratio, 2) +
+          Math.pow(genome.stats.v2mean - genome.testStats.v2ratio, 2)
+      );
+      genome.stats.v2bal =
+        genome.stats.OK2 /
+        (1 + Math.abs(genome.stats.v2ratio - genome.testStats.v2ratio));
       // make this conditional, setup in config
       {
         let validateObjectives = (objs, stats) =>
