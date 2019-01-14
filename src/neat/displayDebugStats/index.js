@@ -23,14 +23,16 @@ let displayPopulationStats = (genomes, generation) => {
     "RTs",
     "Win%",
     "MDD",
-    "V2R",
+    // "V2R",
+    "OK",
     // "̅dBt",
     // "̅dPk",
     "  ",
     "PnL",
     "RTs",
     "Win%",
-    "MDD"
+    "MDD",
+    "OK"
     // "V2R",
     // "̅dBt",
     // "̅dPk"
@@ -47,14 +49,16 @@ let displayPopulationStats = (genomes, generation) => {
     g.stats.RTsPerMonth.toFixed(2),
     (100 * g.stats.winRate).toFixed(1),
     g.stats.maxDrawDown.toFixed(2),
+    g.stats.OK.toFixed(1),
     // g.stats.avgBottomDist.toFixed(2),
     // g.stats.avgPeakDist.toFixed(2),
-    g.stats.novelty.toFixed(2),
+    // g.stats.novelty.toFixed(2),
     "Test".charAt(index),
     sign((100 * g.testStats.profit).toFixed(2)) + "%",
     g.testStats.RTsPerMonth.toFixed(2),
     (100 * g.testStats.winRate).toFixed(1),
-    g.testStats.maxDrawDown.toFixed(2)
+    g.testStats.maxDrawDown.toFixed(2),
+    g.testStats.OK.toFixed(1)
     // g.testStats.v2ratio.toFixed(2),
     // g.testStats.avgBottomDist.toFixed(2),
     // g.testStats.avgPeakDist.toFixed(2)

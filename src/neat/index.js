@@ -1,4 +1,3 @@
-// TODO: Normalisation of Novelty Search objectives
 const assert = require("assert");
 const crypto = require("crypto");
 const { EventEmitter } = require("events");
@@ -83,6 +82,18 @@ const NeatTrainer = {
     this.candidatePopulation = [];
     this.noveltySearchArchive = [];
     this.parentPopulation = [];
+
+    let addObjSD = arr => [...arr, ...arr.map(item => item + "SD")];
+
+    this.neatConfig.noveltySearchObjectives = addObjSD(
+      this.neatConfig.noveltySearchObjectives
+    );
+    // this.neatConfig.localCompetitionObjectives = addObjSD(this.neatConfig.localCompetitionObjectives)
+    // this.neatConfig.sortingObjectives = addObjSD(this.neatConfig.sortingObjectives)
+
+    // console.log(this.neatConfig.noveltySearchObjectives)
+    // console.log(this.neatConfig.localCompetitionObjectives)
+    // console.log(this.neatConfig.sortingObjectives)
 
     this.workers = Array(
       parseInt(process.env.THREADS) || os.cpus().length
@@ -416,52 +427,56 @@ const NeatTrainer = {
       });
     });
 
-    let results = ArrayUtils.flatten(await Promise.all(work));
-    this.evaluate(results);
-  },
+    let combineResults = stats => {
+      // we need to calculate winrate here, for a correct result
+      const wr = stats.reduce(
+        (acc, val) => {
+          (acc.w += val.tradesWon), (acc.l += val.tradesLost);
+          return acc;
+        },
+        { l: 0, w: 0 }
+      );
 
-  histogram: function() {
-    const data = ArrayUtils.flatten(
-      [0, 1, 2, 3].map(index =>
-        normaliseFunctions["percentageChangeLog2"](this.data[index])
-      )
-    );
+      const winRate = ((a, b) => (b ? a / b : 0))(wr.w, wr.w + wr.l);
 
-    // const min = data.reduce((acc,val) => Math.min(acc,val), Infinity)
-    // const max = data.reduce((acc,val) => Math.max(acc,val), -Infinity)
+      const averages = Object.keys(stats[0]).map(key => [
+        key,
+        stats.reduce((acc, val) => acc + val[key], 0) / stats.length
+      ]);
 
-    const min = -0.02;
-    const max = 0.02;
+      const meanStats = averages.reduce((acc, val) => {
+        acc[val[0]] = val[1];
+        return acc;
+      }, {});
 
-    const width = 20;
-    const height = 20;
-
-    const edges = new Array(width)
-      .fill(0)
-      .map((_, index) => min + (index * (max - min)) / width);
-
-    const histogram = histc(data, edges);
-    const maxCount = histogram.reduce(
-      (acc, val) => Math.max(acc, val),
-      -Infinity
-    );
-
-    Logger.debug(
-      `Histogram samples: ${data.length}, display range: ]${min}...${max}[`
-    );
-    Array(histogram.length - 1)
-      .fill(0)
-      .forEach((_, v) => {
-        const edge = edges[v].toFixed(2);
-        const histoString = Array(
-          Math.round((width * histogram[v + 1]) / maxCount)
+      const sds = Object.keys(stats[0]).map(key => [
+        key,
+        Math.sqrt(
+          stats.reduce(
+            (acc, val) => acc + Math.pow(meanStats[key] - val[key], 2),
+            0
+          )
         )
-          .fill("#")
-          .reduce((acc, val) => acc + val, []);
-        Logger.debug(`${histoString}`);
-      });
+      ]);
 
-    return { histogram, edges };
+      const sdStats = sds.reduce((acc, val) => {
+        acc[val[0] + "SD"] = -val[1];
+        return acc;
+      }, {});
+
+      return Object.assign(meanStats, sdStats, { winRate });
+    };
+
+    let results = ArrayUtils.flatten(await Promise.all(work)) //.slice(0,2)
+      .map(res => ({
+        trainStats: combineResults(res.trainStats),
+        testStats: combineResults(res.testStats),
+        id: res.id
+      }));
+
+    // console.log(results[0])
+
+    this.evaluate(results);
   },
 
   start: async function() {
@@ -497,22 +512,38 @@ const NeatTrainer = {
       this.neat.mutate();
     }
 
-    //Split data into training & testing data
-    const trainAmt = Math.trunc(
-      this.normalisedData[0].length * this.neatConfig.trainAmt
+    const chunkLength = Math.ceil(
+      this.data[0].length / this.neatConfig.trainChunks
     );
-    const gapAmt = Math.trunc(
-      this.normalisedData[0].length * this.neatConfig.gapAmt
+    const chunkedInputData = this.normalisedData.map(array =>
+      ArrayUtils.chunk(array, chunkLength)
     );
-    this.trainData = this.normalisedData.map(array => array.slice(0, trainAmt));
-    this.testData = this.normalisedData.map(array =>
-      array.slice(trainAmt + gapAmt)
+    const chunkedCandleData = this.data.map(array =>
+      ArrayUtils.chunk(array, chunkLength)
     );
 
-    this.trainDataRaw = this.data.map(array => array.slice(0, trainAmt));
-    this.testDataRaw = this.data.map(array => array.slice(trainAmt + gapAmt));
+    //Split chunks into training & testing data
 
-    let testTheData = data => !data.every(d => d.every(val => 0 === val));
+    const allData = chunkedCandleData[0].map((array, index) => {
+      const trainAmt = Math.trunc(array.length * this.neatConfig.trainAmt);
+      const testOffset = Math.trunc(
+        array.length * (this.neatConfig.trainAmt + this.neatConfig.gapAmt)
+      );
+
+      return {
+        train: {
+          candles: chunkedCandleData.map(arr => arr[index].slice(0, trainAmt)),
+          input: chunkedInputData.map(arr => arr[index].slice(0, trainAmt))
+        },
+        test: {
+          candles: chunkedCandleData.map(arr => arr[index].slice(testOffset)),
+          input: chunkedInputData.map(arr => arr[index].slice(testOffset))
+        }
+      };
+    });
+
+    // TODO: rewrite the thing below plox
+    /*    let testTheData = data => !data.every(d => d.every(val => 0 === val));
 
     const sanityTestResult = [
       this.trainDataRaw,
@@ -524,12 +555,9 @@ const NeatTrainer = {
       : "Not OK";
 
     Logger.debug(`Data sanity check: ${sanityTestResult}`);
-
+*/
     const workerData = {
-      trainDataRaw: this.trainDataRaw,
-      trainData: this.trainData,
-      testDataRaw: this.testDataRaw,
-      testData: this.testData,
+      data: allData,
       traderConfig
     };
 
@@ -548,13 +576,13 @@ const NeatTrainer = {
     });
 
     let span = arr =>
-      (arr[arr.length - 1] - arr[0]) / (1000 * 60 * 60 * 24 * (365 / 12));
+      (arr[arr.length - 1] - arr[0]) / (1000 * 60 * 60 * 24 * (365.25 / 12));
 
-    const trainTimeSpan = span(this.trainDataRaw[5]);
-    const testTimeSpan = span(this.testDataRaw[5]);
+    const trainTimeSpan = allData.map(d => span(d.train.candles[5]).toFixed(1)); //.reduce((acc,val)=>acc+val);
+    const testTimeSpan = allData.map(d => span(d.test.candles[5]).toFixed(1)); //.reduce((acc,val)=>acc+val);
 
-    Logger.debug(`Training time span: ${trainTimeSpan.toFixed(2)} months`);
-    Logger.debug(`Testing time span: ${testTimeSpan.toFixed(2)} months`);
+    Logger.debug(`Training time spans: [${trainTimeSpan}] months`);
+    Logger.debug(`Testing time spans: [${testTimeSpan}] months`);
 
     const avgBarLength =
       this.data[5]
@@ -564,7 +592,7 @@ const NeatTrainer = {
       (this.data[5].length - 1) /
       (1000 * 60);
 
-    Logger.debug(`Average bar length: ${avgBarLength.toFixed(3)} minutes`);
+    Logger.debug(`Average bar length: ${avgBarLength.toFixed(2)} minutes`);
 
     while (true) {
       this.generation++;

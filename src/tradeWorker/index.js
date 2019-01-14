@@ -3,13 +3,7 @@ const { parentPort, workerData, MessagePort } = require("worker_threads");
 
 const TradeManager = require("../tradeManager");
 
-const {
-  trainDataRaw,
-  testDataRaw,
-  trainData,
-  testData,
-  traderConfig
-} = workerData;
+const { data, traderConfig } = workerData;
 
 //when the main threads hands over a port we'll setup a listener on that port
 parentPort.on("message", ({ port }) => {
@@ -18,10 +12,24 @@ parentPort.on("message", ({ port }) => {
     const work = genomes.map(({ genome, id }) => {
       const network = Network.fromJSON(genome);
       const trader = Object.create(TradeManager);
-      trader.init(network, trainDataRaw, trainData, traderConfig);
-      const trainStats = trader.runTrades();
-      trader.init(network, testDataRaw, testData, traderConfig);
-      const testStats = trader.runTrades();
+      const trainStats = data.map(current => {
+        trader.init(
+          network,
+          current.train.candles,
+          current.train.input,
+          traderConfig
+        );
+        return trader.runTrades();
+      });
+      const testStats = data.map(current => {
+        trader.init(
+          network,
+          current.test.candles,
+          current.test.input,
+          traderConfig
+        );
+        return trader.runTrades();
+      });
       return { trainStats, testStats, id };
     });
 

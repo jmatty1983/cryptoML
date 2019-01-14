@@ -5,7 +5,7 @@ exports.neatConfig = {
   mutationRate: 0.5,
   mutationAmount: 1,
 
-  trainChunks: 3,
+  trainChunks: 4,
   trainAmt: 0.55,
   gapAmt: 0.05,
 
@@ -42,16 +42,9 @@ exports.neatConfig = {
     "buys",
     "sells"
   ],
-  localCompetitionObjectives: [
-    "profit",
-    "winRate",
-    "sharpe",
-    "avgWin",
-    "maxDrawDown"
-  ],
+  localCompetitionObjectives: [],
   //
-  sortingObjectives: ["profit", "novelty", "sharpe", "maxDrawDown"],
-
+  sortingObjectives: ["OK", "R", "RSD", "v2ratio", "v2ratioSD", "novelty"],
   inputs: [
     {
       name: "opens",

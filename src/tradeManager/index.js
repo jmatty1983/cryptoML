@@ -262,7 +262,10 @@ const TradeManager = {
       (1000 * 60 * 60 * 24 * (365.25 / 12));
 
     const alpha = this.currency / this.startCurrency - market;
-    const profit = (this.currency / this.startCurrency - 1) / timeSpanInMonths;
+    const profit = Math.max(
+      -1,
+      (this.currency / this.startCurrency - 1) / timeSpanInMonths
+    );
     const winRate = safeDiv(this.tradesWon, this.tradesWon + this.tradesLost);
 
     const EV = winRate * this.avgWin + (1 - winRate) * this.avgLoss;
@@ -307,8 +310,8 @@ const TradeManager = {
       currency: this.currency,
       startCurrency: this.startCurrency,
       asset: this.asset,
-      profit: profit,
-      value: value,
+      profit,
+      value,
       alpha,
       buys: this.buys / timeSpanInMonths,
       sells: this.sells / timeSpanInMonths,
@@ -329,6 +332,8 @@ const TradeManager = {
       RTsPerMonth: RTs / timeSpanInMonths,
       RTsToTimeSpanRatio,
 
+      tradesWon: this.tradesWon,
+      tradesLost: this.tradesLost,
       wins: this.tradesWon / timeSpanInMonths,
       losses: this.tradesLost / timeSpanInMonths,
 
@@ -360,12 +365,9 @@ const TradeManager = {
       genomeSelfConnections: this.genome.selfconns.length,
 
       OK:
-        alpha > 0 &&
-        profit > 0 &&
-        RTs > 0 &&
-        // RTs < 2000 &&
-        winRate > 0 &&
-        // winRate < 1 &&
+        v2ratio > 0 &&
+        // RTs > 0 &&
+        // winRate > 0 &&
         true
           ? 1
           : 0,
