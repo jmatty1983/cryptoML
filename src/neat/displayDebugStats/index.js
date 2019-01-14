@@ -26,8 +26,6 @@ let displayPopulationStats = (genomes, generation) => {
     "V2R",
     // "̅dBt",
     // "̅dPk",
-    "V2M",
-    "V2D",
     "  ",
     "PnL",
     "RTs",
@@ -42,31 +40,27 @@ let displayPopulationStats = (genomes, generation) => {
 
   let sign = value => (Number(value) > 0 ? "+" + Number(value) : Number(value));
 
-  const d = genomes.map((g, index) => {
-    return [
-      g.generation,
-      "Train".charAt(index),
-      sign((100 * g.stats.profit).toFixed(2)) + "%",
-      g.stats.RTsPerMonth.toFixed(2),
-      (100 * g.stats.winRate).toFixed(1),
-      g.stats.maxDrawDown.toFixed(2),
-      g.stats.v2mean.toFixed(2),
-      -g.stats.v2deviation.toFixed(2),
-      // g.stats.avgBottomDist.toFixed(2),
-      // g.stats.avgPeakDist.toFixed(2),
-      g.stats.novelty.toFixed(2),
-      "Test".charAt(index),
-      sign((100 * g.testStats.profit).toFixed(2)) + "%",
-      g.testStats.RTsPerMonth.toFixed(2),
-      (100 * g.testStats.winRate).toFixed(1),
-      g.testStats.maxDrawDown.toFixed(2)
-      // g.testStats.v2ratio.toFixed(2),
-      // g.testStats.avgBottomDist.toFixed(2),
-      // g.testStats.avgPeakDist.toFixed(2)
-      // " ",
-      // g.name
-    ];
-  });
+  const d = genomes.map((g, index) => [
+    g.generation,
+    "Train".charAt(index),
+    sign((100 * g.stats.profit).toFixed(2)) + "%",
+    g.stats.RTsPerMonth.toFixed(2),
+    (100 * g.stats.winRate).toFixed(1),
+    g.stats.maxDrawDown.toFixed(2),
+    // g.stats.avgBottomDist.toFixed(2),
+    // g.stats.avgPeakDist.toFixed(2),
+    g.stats.novelty.toFixed(2),
+    "Test".charAt(index),
+    sign((100 * g.testStats.profit).toFixed(2)) + "%",
+    g.testStats.RTsPerMonth.toFixed(2),
+    (100 * g.testStats.winRate).toFixed(1),
+    g.testStats.maxDrawDown.toFixed(2)
+    // g.testStats.v2ratio.toFixed(2),
+    // g.testStats.avgBottomDist.toFixed(2),
+    // g.testStats.avgPeakDist.toFixed(2)
+    // " ",
+    // g.name
+  ]);
 
   if (d.length) {
     table

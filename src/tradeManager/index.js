@@ -9,7 +9,7 @@ const TradeManager = {
     {
       longThresh,
       shortThresh,
-      maxPositions,
+      maxOpenPositions,
       minPositionSize,
       maxPositionSize,
       fees,
@@ -32,7 +32,7 @@ const TradeManager = {
     this.networkInput = networkInput;
     this.longThresh = longThresh;
     this.shortThresh = shortThresh;
-    this.maxPositions = maxPositions;
+    this.maxOpenPositions = maxOpenPositions;
     this.minPositionSize = minPositionSize;
     this.maxPositionSize = maxPositionSize;
     this.fees = fees;
@@ -98,16 +98,18 @@ const TradeManager = {
         signal > 0 &&
         this.currency > 0 &&
         changeAmt > 0 &&
-        this.positions.length < this.maxPositions
+        this.positions.length < this.maxOpenPositions
       ) {
         let change = this.currency * changeAmt;
         let quantity = change / close;
 
-        quantity = this.stepSize * Math.floor(quantity / this.stepSize);
+        /*        quantity = this.stepSize * Math.floor(quantity / this.stepSize);
         quantity = Math.max(quantity, this.minQuantity);
         change = quantity * close;
 
         change = Math.min(change, this.currency);
+
+        changeAmt = change / this.currency*/
 
         quantity *= 1 - (this.fees + this.slippage);
 
@@ -143,6 +145,7 @@ const TradeManager = {
           droop,
           rise
         } = this.positions.shift();
+
         let change = Math.min(this.asset, quantity);
         this.asset -= change;
         {
@@ -359,11 +362,11 @@ const TradeManager = {
       OK:
         alpha > 0 &&
         profit > 0 &&
-        v2ratio > 0 &&
         RTs > 0 &&
-        RTs < 2000 &&
-        winRate > 0.5 &&
-        winRate < 1
+        // RTs < 2000 &&
+        winRate > 0 &&
+        // winRate < 1 &&
+        true
           ? 1
           : 0,
 

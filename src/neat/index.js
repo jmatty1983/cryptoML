@@ -386,7 +386,6 @@ const NeatTrainer = {
     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
     this.neat.population.forEach((genome, i) => {
       genome.id = i;
-      genome.clear();
       genome.generation = this.generation;
     });
 
@@ -570,7 +569,9 @@ const NeatTrainer = {
     while (true) {
       this.generation++;
       await this.train();
-      this.saveCandidateGenomes();
+      if (this.neatConfig.saveCandidateGenomes !== false) {
+        this.saveCandidateGenomes();
+      }
       this.breed();
     }
   }

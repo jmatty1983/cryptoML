@@ -5,22 +5,23 @@ exports.neatConfig = {
   mutationRate: 0.5,
   mutationAmount: 1,
 
-  trainAmt: 0.65,
+  trainChunks: 3,
+  trainAmt: 0.55,
   gapAmt: 0.05,
 
   fitBreedAmt: 0.1,
   rndBreedAmt: 0.1,
 
-  discardDuplicateGenomes: false,
-
   // 2 - Long Buy Sell & Position Size
   outputSize: 2,
+  //
+  discardDuplicateGenomes: false,
+  saveCandidateGenomes: true,
 
   candidatePopulationSize: 256,
-  candidateSortingCriteria: ["profit", "maxDrawDown", "winRate"],
+  candidateSortingCriteria: ["profit", "R"],
   // novelty search related
-  noveltySearchDistanceOrder: 2.0,
-  noveltySearchNormalize: true,
+  noveltySearchDistanceOrder: 1.78,
   noveltySearchAddRandom: 4,
   noveltySearchAddFittest: 0,
   noveltySearchObjectives: [
@@ -94,7 +95,7 @@ exports.traderConfig = {
   //Threshold for network signal output to be interpreted as going short
   shortThresh: 0,
   // position limits
-  maxPositions: 20,
+  maxOpenPositions: 20,
   minPositionSize: 0.1,
   maxPositionSize: 1.0,
   //Fees and slippage used for calculating pnl
