@@ -133,15 +133,11 @@ const DataManager = {
    * @returns {integer}
    */
   getNewestTrade: function(table) {
-    if (this.checkDataExists(table)) {
-      const ret = this.getDb()
-        .prepare(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`)
-        .get();
-
-      return ret.lastId;
-    } else {
-      return 0;
-    }
+    return this.checkDataExists(table)
+      ? this.getDb()
+          .prepare(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`)
+          .get()
+      : 0;
   },
 
   /**

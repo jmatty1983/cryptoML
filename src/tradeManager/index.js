@@ -1,5 +1,4 @@
 const { Logger } = require("../logger");
-const tradeStats = require("./tradeStats");
 
 const TradeManager = {
   init: function(
@@ -39,7 +38,7 @@ const TradeManager = {
     this.allowShorts = allowShorts;
 
     this.asset = 0;
-    this.startCurrency = 10000;
+    this.startCurrency = 1;
     this.currency = this.startCurrency;
 
     this.buys = 0;
@@ -89,12 +88,10 @@ const TradeManager = {
         quantity = this.stepSize * Math.floor(quantity / this.stepSize);
         quantity = Math.max(quantity, this.minQuantity);
         change = quantity * close;
-
         while (change > this.currency) {
           quantity -= this.minQuantity;
           change -= this.minQuantity * close;
         }
-
         quantity *= 1 - (this.fees + this.slippage);
 
         if (quantity >= this.minQuantity) {

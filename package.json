@@ -5,13 +5,13 @@
   "main": "main.js",
   "scripts": {
     "prepare": "patch-package",
-    "start": "node --experimental-worker src/main",
-    "blessed": "node --experimental-worker src/blessedUi",
-    "start:ui": "node --experimental-worker ui/server.js",
-    "start:ui:prod": "node --experimental-worker ui/server.js --prod",
+    "start": "node --max-old-space-size=8192 --experimental-worker src/main",
+    "blessed": "node --max-old-space-size=8192 --experimental-worker src/blessedUi",
+    "start:ui": "node --max-old-space-size=8192 --experimental-worker ui/server.js",
+    "start:ui:prod": "node --max-old-space-size=8192 --experimental-worker ui/server.js --prod",
     "build:ui": "webpack --env development --mode development",
     "build:ui:prod": "webpack --env production --mode production",
-    "test": "nyc node --experimental-worker node_modules/mocha/bin/_mocha -c \"./src/**/*.spec.js*\" && nyc report --reporter=html"
+    "test": "nyc node --max-old-space-size=8192 --experimental-worker node_modules/mocha/bin/_mocha -c \"./src/**/*.spec.js*\" && nyc report --reporter=html"
   },
   "husky": {
     "hooks": {
@@ -29,6 +29,9 @@
   },
   "keywords": [],
   "author": "Jason Matthews <jmatty1983@gmail.com>",
+  "contributors": [
+    "lassi.nikko@gmail.com"
+  ],
   "license": "ISC",
   "dependencies": {
     "@babel/core": "^7.2.0",
