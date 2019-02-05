@@ -5,57 +5,46 @@ exports.neatConfig = {
   mutationRate: 0.5,
   mutationAmount: 1,
 
-  trainAmt: 0.65,
+  trainChunks: 4,
+  trainAmt: 0.55,
   gapAmt: 0.05,
 
   fitBreedAmt: 0.1,
   rndBreedAmt: 0.1,
 
-  discardDuplicateGenomes: false,
-
   // 2 - Long Buy Sell & Position Size
   outputSize: 2,
+  //
+  discardDuplicateGenomes: false,
+  saveCandidateGenomes: true,
 
-  candidatePopulationSize: 32,
-  candidateSortingCriteria: ["profit", "EV", "R", "winRate"],
+  candidatePopulationSize: 256,
+  candidateSortingCriteria: ["profit", "R"],
   // novelty search related
-  noveltySearchDistanceOrder: 1.8,
+  noveltySearchDistanceOrder: 1.78,
   noveltySearchAddRandom: 4,
   noveltySearchAddFittest: 0,
   noveltySearchObjectives: [
     "winRate",
     "exposure",
     "avgPosSize",
+    "avgWin",
+    "avgLoss",
+    "maxProfit",
+    "maxLoss",
+    "maxDrawDown",
+    "maxUpDraw",
     "genomeNodes",
     "genomeConnections",
     "genomeGates",
     "genomeSelfConnections",
-    "buysToTradesRatio",
     "avgExpDepth",
-    "RTsToTimeSpanRatio"
+    "buys",
+    "sells"
   ],
-  localCompetitionObjectives: [
-    "profit",
-    "R",
-    "maxProfit",
-    "maxLoss",
-    "maxUpDraw",
-    "maxDrawDown"
-  ],
+  localCompetitionObjectives: [],
   //
-  sortingObjectives: [
-    "OK",
-    "profit",
-    "R",
-    "novelty",
-    "winRate",
-    "maxUpDraw",
-    "maxDrawDown",
-    "maxProfit",
-    "maxLoss",
-    "EV",
-    "RTs"
-  ],
+  sortingObjectives: ["OK", "R", "RSD", "v2ratio", "v2ratioSD", "novelty"],
   inputs: [
     {
       name: "opens",
@@ -83,9 +72,7 @@ exports.neatConfig = {
 exports.indicatorConfig = [
   {
     name: "sma",
-    params: [9],
-    //just a place holder for now. Will allow different normalising functions to be applied
-    //to different indicators
+    params: [{ length: 5, index: 3 }],
     normFunc: "percentageChangeLog2"
   },
   {
@@ -97,12 +84,12 @@ exports.indicatorConfig = [
 
 exports.traderConfig = {
   //Threshold for network signal output to be interpreted as going long
-  longThresh: 1 / 32,
+  longThresh: 1 / 256,
   //Threshold for network signal output to be interpreted as going short
   shortThresh: 0,
-  // position size limits
-  maxPositions: 250,
-  minPositionSize: 0.05,
+  // position limits
+  maxOpenPositions: 20,
+  minPositionSize: 0.1,
   maxPositionSize: 1.0,
   //Fees and slippage used for calculating pnl
   fees: 0.001,

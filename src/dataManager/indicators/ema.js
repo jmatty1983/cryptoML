@@ -1,5 +1,5 @@
-const EMA = (length, [, , , closes]) =>
-  closes.slice(1).reduce(
+const EMA = ({ length, index = 3 }, candles) =>
+  candles[index].slice(1).reduce(
     (ema, item) => {
       const multipier = 2 / (length + 1);
       const lastEma = ema[ema.length - 1];
@@ -7,7 +7,7 @@ const EMA = (length, [, , , closes]) =>
 
       return ema;
     },
-    [closes[0]]
+    [candles[index][0]]
   );
 
 module.exports = EMA;

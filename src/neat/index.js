@@ -1,4 +1,3 @@
-// TODO: Normalisation of Novelty Search objectives
 const assert = require("assert");
 const crypto = require("crypto");
 const { EventEmitter } = require("events");
@@ -9,13 +8,16 @@ const { Neat, methods, architect } = require("neataptic");
 const noveltySearch = require("./noveltySearch/index.js");
 const os = require("os");
 const phonetic = require("phonetic");
-const table = require("table");
+const displayStats = require("./displayDebugStats");
+
 const { Worker, MessageChannel } = require("worker_threads");
 
 const normaliseFunctions = {
   percentageChangeLog2: require("./normFuncs").percentChange
     .percentageChangeLog2
 };
+
+// console.log(normaliseFunctions)
 
 const ArrayUtils = require("../lib/array");
 const {
@@ -30,7 +32,7 @@ const { Logger } = require("../logger");
 
 const mutation = methods.mutation;
 
-mutation.SWAP_NODES.mutateOutput = false;
+// mutation.SWAP_NODES.mutateOutput = false;
 
 const mutations = [
   mutation.ADD_NODE,
@@ -80,6 +82,18 @@ const NeatTrainer = {
     this.candidatePopulation = [];
     this.noveltySearchArchive = [];
     this.parentPopulation = [];
+
+    let addObjSD = arr => [...arr, ...arr.map(item => item + "SD")];
+
+    this.neatConfig.noveltySearchObjectives = addObjSD(
+      this.neatConfig.noveltySearchObjectives
+    );
+    // this.neatConfig.localCompetitionObjectives = addObjSD(this.neatConfig.localCompetitionObjectives)
+    // this.neatConfig.sortingObjectives = addObjSD(this.neatConfig.sortingObjectives)
+
+    // console.log(this.neatConfig.noveltySearchObjectives)
+    // console.log(this.neatConfig.localCompetitionObjectives)
+    // console.log(this.neatConfig.sortingObjectives)
 
     this.workers = Array(
       parseInt(process.env.THREADS) || os.cpus().length
@@ -131,94 +145,23 @@ const NeatTrainer = {
       );
     }
 
-    let displayPopulationStats = genomes => {
-      const tableOptions = {
-        columnDefault: {
-          paddingLeft: 0,
-          paddingRight: 0
-        },
-        border: table.getBorderCharacters(`void`),
-        columnDefault: {
-          alignment: "right"
-        },
-        drawHorizontalLine: (index, size) => {
-          return index < 1 || index === size;
-        }
-      };
+    this.eventEmitter.emit("update", {
+      generation: this.generation,
+      candidates: this.candidatePopulation,
+      parents: this.parentPopulation
+    });
 
-      const header = [
-        "Gen " + this.generation,
-        "  ",
-        "PnL",
-        "RTs",
-        "Win%",
-        "DrDn",
-        "UpDr",
-        "Nov",
-        "  ",
-        "PnL",
-        "RTs",
-        "Win%",
-        "DrDn",
-        "UpDr",
-        " ",
-        "Name"
-      ];
-
-      let sign = value =>
-        Number(value) > 0 ? "+" + Number(value) : Number(value);
-
-      const d = genomes.map((g, index) => {
-        return [
-          g.generation,
-          "Train".charAt(index),
-          sign((100 * g.stats.profit).toFixed(1)) + "%",
-          g.stats.RTsPerMonth.toFixed(2),
-          (100 * g.stats.winRate).toFixed(2),
-          g.stats.maxDrawDown.toFixed(2),
-          g.stats.maxUpDraw.toFixed(2),
-          g.stats.novelty.toFixed(2),
-          "Test".charAt(index),
-          sign((100 * g.testStats.profit).toFixed(2)) + "%",
-          g.testStats.RTsPerMonth.toFixed(2),
-          (100 * g.testStats.winRate).toFixed(1),
-          g.testStats.maxDrawDown.toFixed(2),
-          g.testStats.maxUpDraw.toFixed(2),
-          " ",
-          g.name
-        ];
-      });
-
-      if (d.length) {
-        table
-          .table([[...header], ...d], tableOptions)
-          .slice(1, -1)
-          .split("\n")
-          .forEach(Logger.debug);
-      } else {
-        Logger.debug(`No candidates found in generation ${this.generation}`);
-      }
-    };
-    {
-      this.eventEmitter.emit("update", {
-        generation: this.generation,
-        candidates: this.candidatePopulation,
-        parents: this.parentPopulation
-      });
-      if (this.candidatePopulation.length) {
-        displayPopulationStats(
-          this.candidatePopulation.filter((_, index) => index < 8)
-        );
-      } else {
-        Logger.debug(
-          `No candidates discovered in generation ${this.generation}`
-        );
-        Logger.debug("Meanwhile in general population");
-        displayPopulationStats(
-          this.parentPopulation.filter((_, index) => index < 8)
-        );
-      }
+    if (this.candidatePopulation.length) {
+      Logger.debug(`Candidates: ${this.candidatePopulation.length}`);
+      displayStats(this.candidatePopulation.slice(0, 8), this.generation);
     }
+    displayStats(
+      this.parentPopulation.slice(
+        0,
+        16 - Math.min(8, this.candidatePopulation.length)
+      ),
+      this.generation
+    );
   },
 
   getEventEmitter: function() {
@@ -266,34 +209,37 @@ const NeatTrainer = {
     });
   },
 
-  normalizeNoveltySearchObjectives: function(obj1, obj2) {},
-
   evaluate: function(results) {
     // console.log(results)
     this.nameGenomes();
-    let validateObjectives = (objs, stats) =>
-      objs.forEach(obj =>
-        assert(!isNaN(stats[obj]) && stats[obj] !== undefined)
-      );
 
     results.forEach(({ trainStats, testStats, id }) => {
       let genome = this.neat.population[id];
       genome.stats = trainStats;
       genome.testStats = testStats;
-      // genome.stats.OK2 = testStats.OK & trainStats.OK
+      genome.stats.OK2 = Number(testStats.OK & trainStats.OK);
+      genome.stats.v2mean =
+        (genome.stats.v2ratio + genome.testStats.v2ratio) / 2;
+      genome.stats.v2deviation = -Math.sqrt(
+        Math.pow(genome.stats.v2mean - genome.stats.v2ratio, 2) +
+          Math.pow(genome.stats.v2mean - genome.testStats.v2ratio, 2)
+      );
+      genome.stats.v2bal =
+        genome.stats.OK2 /
+        (1 + Math.abs(genome.stats.v2ratio - genome.testStats.v2ratio));
       // make this conditional, setup in config
       {
-        validateObjectives(this.neatConfig.noveltySearchObjectives, trainStats);
-        validateObjectives(this.neatConfig.sortingObjectives, trainStats);
-        validateObjectives(
-          this.neatConfig.candidateSortingCriteria,
-          trainStats
-        );
-        validateObjectives(this.neatConfig.candidateSortingCriteria, testStats);
-        validateObjectives(
-          this.neatConfig.localCompetitionObjectives,
-          trainStats
-        );
+        let validateObjectives = (objs, stats) =>
+          objs.forEach(obj =>
+            assert(!isNaN(stats[obj]) && stats[obj] !== undefined)
+          );
+        [
+          [this.neatConfig.noveltySearchObjectives, trainStats],
+          [this.neatConfig.sortingObjectives, trainStats],
+          [this.neatConfig.candidateSortingCriteria, trainStats],
+          [this.neatConfig.candidateSortingCriteria, testStats],
+          [this.neatConfig.localCompetitionObjectives, trainStats]
+        ].forEach(([obj, stats]) => validateObjectives(obj, stats));
       }
 
       genome.noveltySearchObjectives = this.neatConfig.noveltySearchObjectives.map(
@@ -311,38 +257,42 @@ const NeatTrainer = {
 
     this.candidatePopulation = [
       ...this.candidatePopulation,
-      ...this.neat.population.filter(genome1 => {
-        return (
-          !this.candidatePopulation.some(({ hash }) => genome1.hash === hash) &&
-          (genome1.stats.OK && genome1.testStats.OK)
-        );
-      })
+      ...this.neat.population.filter(
+        genome =>
+          !this.candidatePopulation.some(({ hash }) => genome.hash === hash) &&
+          genome.stats.OK2
+      )
     ];
 
-    const candidatesToSort = ArrayUtils.getProp(
-      "candidateSortingObjectives",
-      this.candidatePopulation
-    );
-
-    if (candidatesToSort.length) {
+    if (this.candidatePopulation.length) {
+      const candidatesToSort = ArrayUtils.getProp(
+        "candidateSortingObjectives",
+        this.candidatePopulation
+      );
       GBOS(candidatesToSort).forEach((rank, index) => {
         this.candidatePopulation[index].rank = rank;
       });
 
       this.candidatePopulation.sort((a, b) => a.rank - b.rank);
 
-      if (
-        this.candidatePopulation.length >
-        this.neatConfig.candidatePopulationSize
-      ) {
-        this.candidatePopulation.length = this.neatConfig.candidatePopulationSize;
-      }
+      this.candidatePopulation.length = Math.min(
+        this.neatConfig.candidatePopulationSize,
+        this.candidatePopulation.length
+      );
     }
 
     // perform novelty search & sorting
     // merging parent population with current generation population guarantees elitism
 
-    this.neat.population = [...this.neat.population, ...this.parentPopulation];
+    this.neat.population = [...this.parentPopulation, ...this.neat.population];
+
+    /*    const index =  Math.floor(Math.random()*this.parentPopulation.length)
+    this.neat.population = 
+    [
+      ...this.neat.population,
+      ...this.parentPopulation.splice(index),
+      ...this.parentPopulation.splice(0,index)
+    ]*/
 
     const nsObj = ArrayUtils.getProp(
       "noveltySearchObjectives",
@@ -367,27 +317,19 @@ const NeatTrainer = {
       nsArchive,
       lcObj,
       lcArchive,
-      this.neatConfig.noveltySearchDistanceOrder || 2
+      { p: this.neatConfig.noveltySearchDistanceOrder }
     );
 
     this.neat.population.forEach((genome, index) => {
       genome.stats.novelty = novelties[index];
-      if (index < this.neatConfig.populationSize) {
-        genome.sortingObjectives = [
-          ...this.neatConfig.sortingObjectives.map(
-            objective => -results[index].trainStats[objective]
-          ),
-          ...lcs[index]
-        ];
-      }
-    });
-
-    if (this.neat.population.length > this.neatConfig.populationSize) {
-      this.neat.population = [
-        ...this.neat.population.slice(this.neatConfig.populationSize, -1),
-        ...this.neat.population.slice(0, this.neatConfig.populationSize)
+      genome.stats.lcs = lcs[index];
+      genome.sortingObjectives = [
+        ...this.neatConfig.sortingObjectives.map(
+          objective => -genome.stats[objective]
+        ),
+        ...lcs[index].map(value => -value)
       ];
-    }
+    });
 
     const toSort = ArrayUtils.getProp(
       "sortingObjectives",
@@ -395,11 +337,8 @@ const NeatTrainer = {
     );
     const sorted = GBOS(toSort);
     sorted.forEach((rank, index) => {
-      this.neat.population[index].score = -rank;
-      if (this.neat.population[index].stats.RTs === 0) {
-        this.neat.population[index].score -= 10;
-      }
-      this.neat.population[index].rank = rank;
+      const genome = this.neat.population[index];
+      genome.score = -rank; // + genome.stats.lcs[0]
     });
 
     this.neat.sort();
@@ -448,7 +387,7 @@ const NeatTrainer = {
       .slice(last + 1)
       .map((array, index) => {
         const { normFunc } = indicatorConfig[index];
-        return normaliseFunctions[normFunc](array);
+        return normFunc ? normaliseFunctions[normFunc](array) : array;
       });
 
     return [...normalisedCandleData, ...normalisedIndicatorData];
@@ -458,7 +397,6 @@ const NeatTrainer = {
     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
     this.neat.population.forEach((genome, i) => {
       genome.id = i;
-      genome.clear();
       genome.generation = this.generation;
     });
 
@@ -489,52 +427,56 @@ const NeatTrainer = {
       });
     });
 
-    let results = ArrayUtils.flatten(await Promise.all(work));
-    this.evaluate(results);
-  },
+    let combineResults = stats => {
+      // we need to calculate winrate here, for a correct result
+      const wr = stats.reduce(
+        (acc, val) => {
+          (acc.w += val.tradesWon), (acc.l += val.tradesLost);
+          return acc;
+        },
+        { l: 0, w: 0 }
+      );
 
-  histogram: function() {
-    const data = ArrayUtils.flatten(
-      [0, 1, 2, 3].map(index =>
-        normaliseFunctions["percentageChangeLog2"](this.data[index])
-      )
-    );
+      const winRate = ((a, b) => (b ? a / b : 0))(wr.w, wr.w + wr.l);
 
-    // const min = data.reduce((acc,val) => Math.min(acc,val), Infinity)
-    // const max = data.reduce((acc,val) => Math.max(acc,val), -Infinity)
+      const averages = Object.keys(stats[0]).map(key => [
+        key,
+        stats.reduce((acc, val) => acc + val[key], 0) / stats.length
+      ]);
 
-    const min = -0.02;
-    const max = 0.02;
+      const meanStats = averages.reduce((acc, val) => {
+        acc[val[0]] = val[1];
+        return acc;
+      }, {});
 
-    const width = 20;
-    const height = 20;
-
-    const edges = new Array(width)
-      .fill(0)
-      .map((_, index) => min + (index * (max - min)) / width);
-
-    const histogram = histc(data, edges);
-    const maxCount = histogram.reduce(
-      (acc, val) => Math.max(acc, val),
-      -Infinity
-    );
-
-    Logger.debug(
-      `Histogram samples: ${data.length}, display range: ]${min}...${max}[`
-    );
-    Array(histogram.length - 1)
-      .fill(0)
-      .forEach((_, v) => {
-        const edge = edges[v].toFixed(2);
-        const histoString = Array(
-          Math.round((width * histogram[v + 1]) / maxCount)
+      const sds = Object.keys(stats[0]).map(key => [
+        key,
+        Math.sqrt(
+          stats.reduce(
+            (acc, val) => acc + Math.pow(meanStats[key] - val[key], 2),
+            0
+          )
         )
-          .fill("#")
-          .reduce((acc, val) => acc + val, []);
-        Logger.debug(`${histoString}`);
-      });
+      ]);
 
-    return { histogram, edges };
+      const sdStats = sds.reduce((acc, val) => {
+        acc[val[0] + "SD"] = -val[1];
+        return acc;
+      }, {});
+
+      return Object.assign(meanStats, sdStats, { winRate });
+    };
+
+    let results = ArrayUtils.flatten(await Promise.all(work)) //.slice(0,2)
+      .map(res => ({
+        trainStats: combineResults(res.trainStats),
+        testStats: combineResults(res.testStats),
+        id: res.id
+      }));
+
+    // console.log(results[0])
+
+    this.evaluate(results);
   },
 
   start: async function() {
@@ -570,22 +512,38 @@ const NeatTrainer = {
       this.neat.mutate();
     }
 
-    //Split data into training & testing data
-    const trainAmt = Math.trunc(
-      this.normalisedData[0].length * this.neatConfig.trainAmt
+    const chunkLength = Math.ceil(
+      this.data[0].length / this.neatConfig.trainChunks
     );
-    const gapAmt = Math.trunc(
-      this.normalisedData[0].length * this.neatConfig.gapAmt
+    const chunkedInputData = this.normalisedData.map(array =>
+      ArrayUtils.chunk(array, chunkLength)
     );
-    this.trainData = this.normalisedData.map(array => array.slice(0, trainAmt));
-    this.testData = this.normalisedData.map(array =>
-      array.slice(trainAmt + gapAmt)
+    const chunkedCandleData = this.data.map(array =>
+      ArrayUtils.chunk(array, chunkLength)
     );
 
-    this.trainDataRaw = this.data.map(array => array.slice(0, trainAmt));
-    this.testDataRaw = this.data.map(array => array.slice(trainAmt + gapAmt));
+    //Split chunks into training & testing data
 
-    let testTheData = data => !data.every(d => d.every(val => 0 === val));
+    const allData = chunkedCandleData[0].map((array, index) => {
+      const trainAmt = Math.trunc(array.length * this.neatConfig.trainAmt);
+      const testOffset = Math.trunc(
+        array.length * (this.neatConfig.trainAmt + this.neatConfig.gapAmt)
+      );
+
+      return {
+        train: {
+          candles: chunkedCandleData.map(arr => arr[index].slice(0, trainAmt)),
+          input: chunkedInputData.map(arr => arr[index].slice(0, trainAmt))
+        },
+        test: {
+          candles: chunkedCandleData.map(arr => arr[index].slice(testOffset)),
+          input: chunkedInputData.map(arr => arr[index].slice(testOffset))
+        }
+      };
+    });
+
+    // TODO: rewrite the thing below plox
+    /*    let testTheData = data => !data.every(d => d.every(val => 0 === val));
 
     const sanityTestResult = [
       this.trainDataRaw,
@@ -597,12 +555,9 @@ const NeatTrainer = {
       : "Not OK";
 
     Logger.debug(`Data sanity check: ${sanityTestResult}`);
-
+*/
     const workerData = {
-      trainDataRaw: this.trainDataRaw,
-      trainData: this.trainData,
-      testDataRaw: this.testDataRaw,
-      testData: this.testData,
+      data: allData,
       traderConfig
     };
 
@@ -621,13 +576,13 @@ const NeatTrainer = {
     });
 
     let span = arr =>
-      (arr[arr.length - 1] - arr[0]) / (1000 * 60 * 60 * 24 * (365 / 12));
+      (arr[arr.length - 1] - arr[0]) / (1000 * 60 * 60 * 24 * (365.25 / 12));
 
-    const trainTimeSpan = span(this.trainDataRaw[5]);
-    const testTimeSpan = span(this.testDataRaw[5]);
+    const trainTimeSpan = allData.map(d => span(d.train.candles[5]).toFixed(1)); //.reduce((acc,val)=>acc+val);
+    const testTimeSpan = allData.map(d => span(d.test.candles[5]).toFixed(1)); //.reduce((acc,val)=>acc+val);
 
-    Logger.debug(`Training time span: ${trainTimeSpan.toFixed(2)} months`);
-    Logger.debug(`Testing time span: ${testTimeSpan.toFixed(2)} months`);
+    Logger.debug(`Training time spans: [${trainTimeSpan}] months`);
+    Logger.debug(`Testing time spans: [${testTimeSpan}] months`);
 
     const avgBarLength =
       this.data[5]
@@ -637,12 +592,14 @@ const NeatTrainer = {
       (this.data[5].length - 1) /
       (1000 * 60);
 
-    Logger.debug(`Average bar length: ${avgBarLength.toFixed(3)} minutes`);
+    Logger.debug(`Average bar length: ${avgBarLength.toFixed(2)} minutes`);
 
     while (true) {
       this.generation++;
       await this.train();
-      this.saveCandidateGenomes();
+      if (this.neatConfig.saveCandidateGenomes !== false) {
+        this.saveCandidateGenomes();
+      }
       this.breed();
     }
   }
