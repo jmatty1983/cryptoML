@@ -1,25 +1,34 @@
 const { Logger } = require("../logger");
 const ArrayUtils = require("../lib/array");
-//const fs = require("fs");
+const Strategies = require("../strategies")
+
+const fs = require("fs");
 
 const TradeManager = {
   init: function(
-    genome,
-    data,
-    networkInput,
+    strategy, //name of the strategy file
+    pair,
+    type,
+    length,
+    data, //candle data (NOT normalised)
+    //below will be settings from config.js which will include backtesting parms.
     {
-      longThresh,
-      shortThresh,
       maxOpenPositions,
       minPositionSize,
       maxPositionSize,
+      startCurrency,  
       fees,
-      slippage,
-      allowShorts
+      slippage
     }
   ) {
-    this.genome = genome;
-    this.genome.clear();
+
+    //import strategy by file name. Which has to be a function that takes a single candle as an update.
+    this.strategy = strategy;
+    this.Strategies = Strategies
+
+    this.pair = pair;
+    this.type = type;
+    this.length = length;
 
     const [opens, highs, lows, closes, volumes, start, end, tradeid] = data;
     this.data = data;
@@ -32,18 +41,15 @@ const TradeManager = {
     this.end = end;
     this.tradeid = tradeid;
 
-    this.networkInput = networkInput;
-    this.longThresh = longThresh;
-    this.shortThresh = shortThresh;
     this.maxOpenPositions = maxOpenPositions;
     this.minPositionSize = minPositionSize;
     this.maxPositionSize = maxPositionSize;
     this.fees = fees;
     this.slippage = slippage;
-    this.allowShorts = allowShorts;
+    //this.allowShorts = allowShorts;
 
     this.asset = 0;
-    this.startCurrency = 10000;
+    this.startCurrency = startCurrency;
     this.currency = this.startCurrency;
 
     this.buys = 0;
@@ -79,49 +85,51 @@ const TradeManager = {
 
     this.maxProfit = 0;
     this.maxLoss = 0;
-    this.minQuantity = this.stepSize = 0.00000100; // BTC 0.00000100; // XRP 0.10000000
+    this.minQuantity = this.stepSize = 0.000001; // BTC 0.00000100; // XRP 0.10000000
 
-    this.positions = [];
-    //this.positionsLong = [];
-    //this.positionsShort = [];
+    this.positionsLong = [];
+    this.positionsShort = [];
     this.trades = [];
     this.tickStatsdata = []; //ADDED
   },
 
-  doLong: function(
+  //we just need this function do buy if the strategy says so. so we can use it like neat does just need to make it simpler here
+  //convert signal into a long/short/exit rather then >0 && <0.
+  //if signal == "LONG", "SHORT", "EXIT"
+  //WE FEED LONG & AMOUNT & and the current candle close and trade ids and start and clsoe time.
+  //its using amount now so keep that in mind.
+  doSignal: function(
     signal,
     amount,
     [, , , close, , startTime, endTime, tradeId]
   ) {
+    //console.log("DOLONG", signal, amount, close)
     try {
-      this.positions.forEach(pos => {
-        pos.droop = Math.min(pos.droop, close);
-        pos.rise = Math.max(pos.rise, close);
-      });
+        this.positionsLong.forEach(pos => {
+          pos.droop = Math.min(pos.droop, close);
+          pos.rise = Math.max(pos.rise, close);
+        });
 
-      let changeAmt =
-        this.minPositionSize +
-        (this.maxPositionSize - this.minPositionSize) *
-          (Math.min(1, Math.max(-1, amount)) * 0.5 + 0.5);
-
+        this.positionsShort.forEach(pos => {
+          pos.droop = Math.min(pos.droop, close);
+          pos.rise = Math.max(pos.rise, close);
+        });
+  
+        let changeAmt =
+          this.minPositionSize +
+          (this.maxPositionSize - this.minPositionSize) *
+            (Math.min(1, Math.max(-1, amount)) * 0.5 + 0.5);
       if (
-        signal > 0 &&
-        this.currency > 0 &&
-        changeAmt > 0 &&
-        this.positions.length < this.maxOpenPositions
+        signal == "long" &&
+        this.currency > 0
       ) {
+        //console.log(changeAmt)
         let change = this.currency * changeAmt;
         let quantity = change / close;
 
-        /*        quantity = this.stepSize * Math.floor(quantity / this.stepSize);
-        quantity = Math.max(quantity, this.minQuantity);
-        change = quantity * close;
-
-        change = Math.min(change, this.currency);
-
-        changeAmt = change / this.currency*/
-
         quantity *= 1 - (this.fees + this.slippage);
+
+        //console.log("quantitty", quantity)
 
         if (quantity >= this.minQuantity) {
           this.currency -= change;
@@ -130,7 +138,7 @@ const TradeManager = {
           this.asset += quantity;
           this.buys++;
 
-          this.positions.push({
+          this.positionsLong.push({
             price: close,
             quantity: quantity,
             currency: change,
@@ -139,16 +147,13 @@ const TradeManager = {
             rise: close
           });
 
-          const totalPositions = this.positions.reduce(
+          const totalPositions = this.positionsLong.reduce(
             (sum, { currency }) => sum + currency,
             0
           );
-          //const totalBalance = totalPosition.reduce((total, num) => (total + num))
-          //console.log(totalPositions)
-          //console.log(totalBalance)
 
           this.trades.push({
-            type: "open",
+            type: "longOpen",
             asset: quantity,
             currency: change,
             actionPrice: change / quantity,
@@ -159,7 +164,7 @@ const TradeManager = {
             wallet: this.getValue(close)
           });
         }
-      } else if (signal < 0 && this.asset > 0 && this.positions.length > 0) {
+      } else if (signal == "closelong" && this.asset > 0 && this.positionsLong.length > 0) {
         const {
           price,
           currency,
@@ -167,7 +172,7 @@ const TradeManager = {
           depth,
           droop,
           rise
-        } = this.positions.shift();
+        } = this.positionsLong.shift();
 
         let change = Math.min(this.asset, quantity);
         this.asset -= change;
@@ -175,17 +180,19 @@ const TradeManager = {
           const sellVal = change * (1 - (this.fees + this.slippage)) * close;
           this.currency += sellVal;
 
-          const totalPositions = this.positions.reduce(
+          const totalPositions = this.positionsLong.reduce(
             (sum, { currency }) => sum + currency,
             0
           );
 
           this.trades.push({
-            type: "close",
+            type: "longClose",
             asset: change,
             currency: sellVal,
             actionPrice: sellVal / quantity,
-            candleClose: close,
+            candleClose: close,          //const totalBalance = totalPosition.reduce((total, num) => (total + num))
+            //console.log(totalPositions)
+            //console.log(totalBalance)
             time: endTime,
             tradeid: tradeId,
             balance: this.currency + totalPositions,
@@ -226,50 +233,17 @@ const TradeManager = {
         }
       }
 
-      if (this.currency < 0 || this.asset < 0) {
-        console.log(`${this.currency} ${this.asset}`);
-        throw "Currency or Asset dropped below 0";
-      }
-    } catch (e) {
-      Logger.error(`${e}`);
-      process.exit();
-    }
-  },
-
-  doLongBacktest: function(
-    signal,
-    amount,
-    [, , , close, , startTime, endTime, tradeId]
-  ) {
-    try {
-      this.positions.forEach(pos => {
-        pos.droop = Math.min(pos.droop, close);
-        pos.rise = Math.max(pos.rise, close);
-      });
-
-      let changeAmt =
-        this.minPositionSize +
-        (this.maxPositionSize - this.minPositionSize) *
-          (Math.min(1, Math.max(-1, amount)) * 0.5 + 0.5);
-
       if (
-        signal > 0 &&
-        this.currency > 0 &&
-        changeAmt > 0 &&
-        this.positions.length < this.maxOpenPositions
+        signal == "short" &&
+        this.currency > 0
       ) {
+        //console.log(changeAmt)
         let change = this.currency * changeAmt;
         let quantity = change / close;
 
-        /*        quantity = this.stepSize * Math.floor(quantity / this.stepSize);
-        quantity = Math.max(quantity, this.minQuantity);
-        change = quantity * close;
-
-        change = Math.min(change, this.currency);
-
-        changeAmt = change / this.currency*/
-
         quantity *= 1 - (this.fees + this.slippage);
+
+        //console.log("quantitty", quantity)
 
         if (quantity >= this.minQuantity) {
           this.currency -= change;
@@ -278,7 +252,7 @@ const TradeManager = {
           this.asset += quantity;
           this.buys++;
 
-          this.positions.push({
+          this.positionsShort.push({
             price: close,
             quantity: quantity,
             currency: change,
@@ -287,16 +261,13 @@ const TradeManager = {
             rise: close
           });
 
-          const totalPositions = this.positions.reduce(
-            (sum, { currency }) => sum + currency,
+          const totalPositions = this.positionsShort.reduce(
+            (sum, { currency }) => sum - currency,
             0
           );
-          //const totalBalance = totalPosition.reduce((total, num) => (total + num))
-          //console.log(totalPositions)
-          //console.log(totalBalance)
 
           this.trades.push({
-            type: "open",
+            type: "shortOpen",
             asset: quantity,
             currency: change,
             actionPrice: change / quantity,
@@ -307,7 +278,7 @@ const TradeManager = {
             wallet: this.getValue(close)
           });
         }
-      } else if (signal < 0 && this.asset > 0 && this.positions.length > 0) {
+      } else if (signal == "closeshort" && this.asset > 0 && this.positionsShort.length > 0) {
         const {
           price,
           currency,
@@ -315,7 +286,7 @@ const TradeManager = {
           depth,
           droop,
           rise
-        } = this.positions.shift();
+        } = this.positionsShort.shift();
 
         let change = Math.min(this.asset, quantity);
         this.asset -= change;
@@ -323,17 +294,19 @@ const TradeManager = {
           const sellVal = change * (1 - (this.fees + this.slippage)) * close;
           this.currency += sellVal;
 
-          const totalPositions = this.positions.reduce(
-            (sum, { currency }) => sum + currency,
+          const totalPositions = this.positionsShort.reduce(
+            (sum, { currency }) => sum - currency,
             0
           );
 
           this.trades.push({
-            type: "close",
+            type: "shortClose",
             asset: change,
             currency: sellVal,
             actionPrice: sellVal / quantity,
-            candleClose: close,
+            candleClose: close,          //const totalBalance = totalPosition.reduce((total, num) => (total + num))
+            //console.log(totalPositions)
+            //console.log(totalBalance)
             time: endTime,
             tradeid: tradeId,
             balance: this.currency + totalPositions,
@@ -395,33 +368,9 @@ const TradeManager = {
   //   }
   // },
 
+
+  //This is where we handle every candle by passing the candle in and long/short and amount.
   handleCandle: function(candle, [longSig, amount]) {
-    // Buy/Sell signal mapping as below
-    //
-    //         /
-    //    ____/
-    //   /
-    //  /
-    //
-
-    const signal =
-      Math.max(0, Math.abs(longSig) - this.longThresh) * Math.sign(longSig);
-
-    //const signal = longSig
-
-    if (signal) {
-      //console.log(signal, amount, candle)
-      this.doLong(signal, amount, candle);
-    }
-    if (this.asset > 0) {
-      this.avgExpDepth += this.asset / this.getValue(candle[3]);
-      this.exposure++;
-    }
-
-    this.candleCount++;
-  },
-
-  backtestCandle: function(candle, [longSig, amount]) {
     // Buy/Sell signal mapping as below
     //
     //         /
@@ -433,8 +382,11 @@ const TradeManager = {
     const signal = longSig
 
     if (signal) {
-      this.doLongBacktest(signal, amount, candle);
+      this.doSignal(signal, amount, candle);
     }
+    /*if (signal === "short") {
+      this.doShort(signal, amount, candle);
+    }*/
     if (this.asset > 0) {
       this.avgExpDepth += this.asset / this.getValue(candle[3]);
       this.exposure++;
@@ -443,6 +395,7 @@ const TradeManager = {
     this.candleCount++;
   },
 
+  //This function is for WEB UI to calculate the statistics of the portfolio every candle/tick. For plotting PNL charts and such.
   tickStats: function(candle) {
     
     const profit = Math.max(
@@ -451,8 +404,6 @@ const TradeManager = {
     );
 
     const market = this.closes[this.closes.length - 1] / this.closes[0];
-    const alpha = this.currency / this.startCurrency - market;
-    
 
 
 
@@ -464,9 +415,9 @@ const TradeManager = {
       value: this.getValue(candle[3])
     }*/
     
-    //TIMESTAMP(close), close, totalvalue, alpha, profit, maxupdraw, maxdowndraw
+    //TIMESTAMP(close), close, totalvalue, alpha, profit
 
-    const ret = [candle[6], candle[3], (this.getValue(candle[3])), alpha, profit, this.upDraw, this.drawDown]
+    const ret = [new Date(candle[6]), candle[3], this.getValue(candle[3]), ((market + this.getValue(candle[3])) - this.getValue(candle[3])), profit]
     this.tickStatsdata.push(ret)
   },
 
@@ -476,8 +427,6 @@ const TradeManager = {
       Math.abs(denom) <= Number.EPSILON || isNaN(num) || isNaN(denom)
         ? 0
         : num / denom;
-
-    const mDD = Math.min(this.maxDrawDown, this.drawDown);
 
     this.maxDrawDown = Math.min(this.maxDrawDown, this.drawDown);
     this.maxUpDraw = Math.max(this.maxUpDraw, this.upDraw);
@@ -517,7 +466,7 @@ const TradeManager = {
 
     this.sharpe =
       safeDiv(meanReturns - this.riskFreeReturns, stdReturns) *
-      Math.sqrt((timeSpanInMonths * 365) / 12);
+      Math.sqrt((timeSpanInMonths * 365.25) / 12);
 
     this.avgDroop = safeDiv(this.avgDroop, RTs);
     this.avgRise = safeDiv(this.avgRise, RTs);
@@ -593,17 +542,10 @@ const TradeManager = {
 
       exposure: this.exposure / this.candleCount,
 
-      genomeNodes: this.genome.nodes.length,
-      genomeConnections: this.genome.connections.length,
-      genomeGates: this.genome.gates.length,
-      genomeSelfConnections: this.genome.selfconns.length,
-
       OK:
         v2ratio > 0 &&
-        //alpha > 0 &&
-        R > 0 &&
-        RTs > 0 &&
-        winRate > 0 &&
+        // RTs > 0 &&
+        // winRate > 0 &&
         true
           ? 1
           : 0,
@@ -613,59 +555,66 @@ const TradeManager = {
       trades: this.trades
 
     };
-
+    console.log(ret)
+    this.saveBacktestResults(ret)
     return ret;
   },
 
-  runTrades: function() {
-    this.opens.map((x, index) => {
-      const candleInput = this.networkInput.reduce(
-        (array, item) => [...array, item[index]],
-        []
-      );
-      const candle = this.data.reduce(
-        (array, item) => [...array, item[index]],
-        []
-      );
-      /*let rollingInput = this.networkInput.reduce((acc, list, idx, arr) =>
-      {
-        if (idx >= process.env.WINDOWSIZE )
-              return acc;
+  saveBacktestResults: function(backtestResults) {
+    console.log("SAVING BACKTEST!")
+    //const pair = "btc/usdt"
+    //const type = "time"
+    //const length = "4h"
+    //const strategy = "example"
+    const safePairName = this.pair
+      .replace(/\//g, "_")
+      .replace(/[^a-z0-9_]/gi, "");
+      const filename = `${this.strategy}_${safePairName}_${this.type}_${this.length}`;
+      //const dir = `../../backtests/${filename}`;
+      const dir = `${__dirname}/../../backtests/${this.strategy}`;
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir);
+      }
+      if (!fs.existsSync(`${dir}/${filename}`)) {
+        const data = {
+          results: backtestResults
+        };
+        fs.writeFileSync(`${dir}/${filename}`, JSON.stringify(data));
+      }
+    },
 
-          //return [...acc, ...arr.map(x => x[(idx + index)])];
-          return [...acc, ...arr.map((list, index)=>{ return list[index] })]
-      }, []);*/
-      const output = this.genome.noTraceActivate(candleInput);
+    //MAP IS FASTER THEN FOREACH AND LESS AGGRESSIVE.
+  /*runTrades: function() {
+    this.opens.forEach((x, index) => {
+     /* const candleInput = this.networkInput.reduce(
+        (array, item) => [...array, item[index]],
+        []
+      );*/
+      /*const candle = this.data.reduce(
+        (array, item) => [...array, item[index]],
+        []
+      );
       //const output = this.genome.noTraceActivate(candleInput);
+      const output = Strategies[this.strategy](candle); //this sends the candle to strategy which will return [SIGNAL, AMOUNT]
       this.handleCandle(candle, output);
     });
-    
-    return this.calcStats();
-  },
+    //console.log(this.calcStats())
 
-  runBacktest: function() {
-    this.opens.forEach((x, index) => {
-      const candleInput = this.networkInput.reduce(
-        (array, item) => [...array, item[index]],
-        []
-      );
+    return this.calcStats();
+  },*/
+
+  runTrades: function() {
+    this.opens.map((x, index) => {
       const candle = this.data.reduce(
         (array, item) => [...array, item[index]],
         []
       );
-      /*let rollingInput = this.networkInput.reduce((acc, list, idx, arr) =>
-      {
-        if (idx >= process.env.WINDOWSIZE )
-              return acc;
-
-          //return [...acc, ...arr.map(x => x[(idx + index)])];
-          return [...acc, ...arr.map((list, index)=>{ return list[index] })]
-      }, []);*/
-      const output = this.genome.noTraceActivate(candleInput);
       //const output = this.genome.noTraceActivate(candleInput);
-      this.backtestCandle(candle, output);
+      const output = Strategies[this.strategy](candle); //this sends the candle to strategy which will return [SIGNAL, AMOUNT]
+      this.handleCandle(candle, output);
     });
-    
+    //console.log(this.calcStats())
+
     return this.calcStats();
   },
 
@@ -679,7 +628,6 @@ const TradeManager = {
         (array, item) => [...array, item[index]],
         []
       );
-      //console.log(candleInput)
       const output = this.genome.noTraceActivate(candleInput);
       this.handleCandle(candle, output);
       this.tickStats(candle);
@@ -687,6 +635,7 @@ const TradeManager = {
 
     return this.tickStatsdata;
   }
+
 };
 
 module.exports = TradeManager;

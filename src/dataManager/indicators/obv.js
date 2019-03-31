@@ -1,4 +1,4 @@
-const OBV = (what, [opens, , , closes, volume]) =>
+const OBV = ([opens, , , closes, volume]) =>
   closes.reduce((obv, item, idx) => {
     let lastObv = obv[obv.length - 1] || 0;
     const delta = closes[idx] - opens[idx];

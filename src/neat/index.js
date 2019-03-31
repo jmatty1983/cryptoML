@@ -3,7 +3,7 @@ const crypto = require("crypto");
 const { EventEmitter } = require("events");
 const fs = require("fs");
 const GBOS = require("GBOS-js");
-const histc = require("histc");
+//const histc = require("histc");
 const { Neat, methods, architect } = require("neataptic");
 const noveltySearch = require("./noveltySearch/index.js");
 const os = require("os");
@@ -12,10 +12,10 @@ const displayStats = require("./displayDebugStats");
 
 const { Worker, MessageChannel } = require("worker_threads");
 
-const normaliseFunctions = {
-  percentageChangeLog2: require("./normFuncs").percentChange
+/*const normaliseFunctions = {
+  percentageChangeLog2: require("../dataManager/normFuncs").percentChange
     .percentageChangeLog2
-};
+};*/
 
 // console.log(normaliseFunctions)
 
@@ -187,7 +187,9 @@ const NeatTrainer = {
 
   saveCandidateGenomes: function() {
     this.candidatePopulation.forEach(genome => {
-      const safePairName = this.pair.replace(/[^a-z0-9]/gi, "");
+      const safePairName = this.pair
+        .replace(/\//g, "_")
+        .replace(/[^a-z0-9_]/gi, "");
       const filename = `${safePairName}_${this.type}_${this.length}_PnL_${(
         genome.testStats.profit * 100
       ).toFixed(4)}_WR_${(genome.testStats.winRate * 100).toFixed(4)}`;
@@ -210,7 +212,6 @@ const NeatTrainer = {
   },
 
   evaluate: function(results) {
-    // console.log(results)
     this.nameGenomes();
 
     results.forEach(({ trainStats, testStats, id }) => {
@@ -359,40 +360,6 @@ const NeatTrainer = {
     this.parentPopulation = this.neat.population;
   },
 
-  getNormalisedData: function() {
-    //A little extra gymnastics because the candle data is an array of arrays. I considered
-    //changing it to an object like {opens: [...], highs: [...]....} but the trade off is
-    //the loss of js array functions like map, reduce etc.. without munging up the data more.
-    //In the end I think this is actually cleaner even though it's not exactly clean.
-    const dataToIndex = {
-      opens: 0,
-      highs: 1,
-      lows: 2,
-      closes: 3,
-      volumes: 4,
-      startTime: 5
-    };
-
-    //This only works for norm funcs that don't need additional data stored at the moment.
-    //High Low for example needs the min and max that was used to normalise the data. I need
-    //to workout how I would want to store that and save it for later in an extendable way.
-    const normalisedCandleData = this.neatConfig.inputs.map(
-      ({ name, normFunc }) =>
-        normaliseFunctions[normFunc](this.data[dataToIndex[name]])
-    );
-    const last = Object.values(dataToIndex).reduce((acc, val) =>
-      Math.max(acc, val)
-    );
-    const normalisedIndicatorData = this.data
-      .slice(last + 1)
-      .map((array, index) => {
-        const { normFunc } = indicatorConfig[index];
-        return normFunc ? normaliseFunctions[normFunc](array) : array;
-      });
-
-    return [...normalisedCandleData, ...normalisedIndicatorData];
-  },
-
   train: async function() {
     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
     this.neat.population.forEach((genome, i) => {
@@ -482,7 +449,7 @@ const NeatTrainer = {
   start: async function() {
     Logger.info("Starting genome search");
 
-    this.normalisedData = this.getNormalisedData();
+    this.normalisedData = DataManager.normaliseData(this.data);
 
     if (this.normalisedData.length) {
       Logger.debug(
@@ -542,6 +509,8 @@ const NeatTrainer = {
       };
     });
 
+    //Logger.debug(allData);
+
     // TODO: rewrite the thing below plox
     /*    let testTheData = data => !data.every(d => d.every(val => 0 === val));
 
@@ -595,8 +564,10 @@ const NeatTrainer = {
     Logger.debug(`Average bar length: ${avgBarLength.toFixed(2)} minutes`);
 
     while (true) {
+      let start = Date.now()
       this.generation++;
       await this.train();
+      console.log(`Generation took ${Date.now() - start} seconds.`)
       if (this.neatConfig.saveCandidateGenomes !== false) {
         this.saveCandidateGenomes();
       }

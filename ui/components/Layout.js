@@ -6,9 +6,22 @@ import { createGlobalStyle } from "styled-components";
 
 //GlobabStyle not working.
 const GlobalStyle = createGlobalStyle`
-  body {
-    color: #000000;
-  }
+@import url('https://fonts.googleapis.com/css?family=Roboto:300,400,700');
+*, **, html, body {
+  box-sizing: border-box;
+}
+html, body {
+  font-size: 18px;
+  line-height: 1.6;
+  font-family: 'Roboto', sans-serif;
+  font-style: normal;
+  padding: 0;
+  margin: 0;
+  height: 100vh;
+  color: #000000;
+  background-color: #ffffff; 
+  -webkit-font-smoothing: subpixel-antialiased;
+}
   
 `;
 //Style for things used on header, layout, pages.

@@ -1,5 +1,6 @@
 const { Network } = require("neataptic");
 const { parentPort, workerData, MessagePort } = require("worker_threads");
+const fs = require("fs");
 
 const TradeManager = require("../tradeManager");
 
@@ -19,6 +20,7 @@ parentPort.on("message", ({ port }) => {
           current.train.input,
           traderConfig
         );
+        //console.log(current.train.candles)
         return trader.runTrades();
       });
       const testStats = data.map(current => {

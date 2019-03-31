@@ -19,9 +19,10 @@ const ks = ({ gain = 2, index = 3 }, candle) => {
     kf = smooth + velo;
     array.push(kf);
   }
+  //console.log(array.slice(0,10))
   return array;
   /*  const kf = new kalmanFilter({ R, Q, A });
-  return candle[index].map(item => kf.filter(item));*/
+    return candle[index].map(item => kf.filter(item));*/
 };
 
 module.exports = ks;

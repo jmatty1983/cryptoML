@@ -6,53 +6,62 @@ import anychart from "anychart";
 import "./themes/dark_turquoise.js"
 
 const Chart = (props) => {
-  //const table = props.match.params.table;
-  const {table} = props;
+  const {backtest} = props;
   const [data, setData] = useState([]);
+  const [trades, setTrades] = useState({});
   const [loading, setLoading] = useState(true);
 
   const fetchData = async table => {
-    const response = await fetch(`/api/chart/${table}`);
+    const response = await fetch(`/api/backtest/chart/${backtest  }`);
     const json = await response.json();
     setData(json);
     setLoading(false);
   };
 
+  const fetchTrades = async trades => {
+    const response = await fetch(`/api/backtest/chartTrades/${backtest}`);
+    const json = await response.json();
+    setTrades(json);
+    setLoading(false);
+  };
+
   useEffect(() => {
     setLoading(true);
-    fetchData(table);
-  }, [table]);
+    fetchData(backtest);
+    fetchTrades(backtest);
+  }, [backtest]);
 
-  //console.log(data);
-
-  //this won't be quite right but just want to see if i can get it drawn
-  const candleData = data.map(
-    ({ endTime, low, open, close, high, volume }, index) => [
-      endTime,
-      low,
-      open,
-      close,
-      high,
-      volume
-    ]
-  );
-  //.slice(0, 5000);
-
-  //console.log(candleData);
-
+  //console.log(trades);
   anychart.theme("darkTurquoise");
   const chartData = anychart.data.table();
-  chartData.addData(candleData);
+  chartData.addData(data);
   const mapping = chartData.mapAs();
   mapping.addField("open", 1);
   mapping.addField("high", 2);
   mapping.addField("low", 3);
   mapping.addField("close", 4);
   mapping.addField("value", 5);
+  mapping.addField("sma", 6);
+  
   const chart = anychart.stock();
   
   //FIRST PLOT
-  chart.plot(0).candlestick(mapping);
+  const plot = chart.plot(0);
+  // create candlestick series
+  plot.line()
+  .data(chartData.mapAs({'value': 4}))
+  plot.line()
+  .data(chartData.mapAs({'value': 6}))
+
+  plot.eventMarkers(trades);
+
+  const eventMarkers = plot.eventMarkers();
+  eventMarkers
+    .position("series")
+    .seriesId(0)
+    .type("flag")
+    .direction("up")
+
 
   // create second plot
   const volumePlot = chart.plot(1);
@@ -74,7 +83,7 @@ const Chart = (props) => {
   volumeSeries.name("Volume");
 
   // create scroller series with mapped data
-  chart.scroller().area(mapping);
+  chart.scroller().line(mapping);
 
   // create range picker
   const rangePicker = anychart.ui.rangePicker();
@@ -90,12 +99,7 @@ const Chart = (props) => {
 
   const page = (
     <>
-      <AnyChart
-        instance={chart}
-        title={table}
-        height={1000}
-        theme="monochromatic"
-      />
+      <AnyChart instance={chart} title={{backtest}} height={1000} />
     </>
   );
 

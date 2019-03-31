@@ -6,7 +6,8 @@ const path = require("path");
 const api = require("./api");
 
 const app = express();
-const mode = process.argv[2] === "--prod" ? "production " : "development";
+const mode = process.env.NODE_ENV || "development";
+
 //Middleware for hot module reloading
 if (mode === "development") {
   const webpack = require("webpack");

@@ -5,6 +5,7 @@ const SMA = ({ length, index = 3 }, candles) =>
     sma.push(
       ArrayUtils.average(array.slice(Math.max(0, idx + 1 - length), idx + 1))
     );
+    //console.log("sma", sma)
     return sma;
   }, []);
 

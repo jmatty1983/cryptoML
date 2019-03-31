@@ -6,11 +6,8 @@ const blessed = require("neo-blessed");
 const ImportPane = require("./importPane");
 const ProcessPane = require("./processPane");
 const GaPane = require("./gaPane");
-const PaperPane = require("./paperPane");
 
-const panes = [ImportPane, ProcessPane, GaPane, PaperPane];
-
-const items = ["Import", "Process", "Ga", "Paper Trader"];
+const items = ["Import", "Process", "Ga"];
 
 const quitBlessed = () => {
   screen.destroy();
@@ -82,14 +79,27 @@ list.on("keypress", (ch, { name }) => {
 
   if (name === "enter") {
     list.setLabel(` Menu - ${items[list.selected]} `);
-    panes.forEach((pane, i) =>
-      i === list.selected ? pane.show() : pane.hide()
-    );
+    if (list.selected === 0) {
+      ImportPane.show();
+      ProcessPane.hide();
+      GaPane.hide();
+    } else if (list.selected === 1) {
+      ImportPane.hide();
+      ProcessPane.show();
+      GaPane.hide();
+    } else {
+      ImportPane.hide();
+      ProcessPane.hide();
+      GaPane.show();
+    }
   }
 });
 
 list.focus();
-panes.forEach(pane => pane.draw(container));
+
+ImportPane.draw(container);
+ProcessPane.draw(container);
+GaPane.draw(container);
 
 screen.key("C-c", quitBlessed);
 

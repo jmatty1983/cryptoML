@@ -3,7 +3,7 @@ import DisplayTable from "./DisplayTable";
 import MUIDataTable from "mui-datatables";
 //import Layout from "../components/Layout";
 
-const GenomeTable = (props) => {
+const BacktestTable = (props) => {
   const [data, setData] = useState([]);
   //const [genome, setGenome] = useState(0)
   const [loading, setLoading] = useState(true);
@@ -16,8 +16,9 @@ const GenomeTable = (props) => {
   };
 
   const fetchData = async () => {
-    const response = await fetch(`/api/genomes`);
+    const response = await fetch(`/api/backtests`);
     const json = await response.json();
+    console.log(json)
     setData(json);
     setLoading(false);
   };
@@ -31,7 +32,7 @@ const GenomeTable = (props) => {
     { 
         name: "name",
         options: {
-                customBodyRender: (value) => <button onClick={() => props.setGenome(value)}>{value}</button>
+                customBodyRender: (value) => <button onClick={() => props.setBacktest(value)}>{value}</button>
         },
     },
     "currency",
@@ -50,25 +51,25 @@ const GenomeTable = (props) => {
 
 
   const tableData = data.map(({ name, data }) => [
-    name,
-    /*data.testStats.currency,
-    data.testStats.RTs,
-    data.testStats.profit,
-    data.testStats.alpha,
-    data.testStats.sharpe,
-    data.testStats.v2ratio,
-    data.testStats.RoMaD,
-    data.testStats.winRate,
+    name.split("/").slice(2,3),
+    /*data.results.currency,
+    data.results.RTs,
+    data.results.profit,
+    data.results.alpha,
+    data.results.sharpe,
+    data.results.v2ratio,
+    data.results.RoMaD,
+    data.results.winRate,
 */
-    `${data.testStats.currency}`,
-    `${data.testStats.RTs}`,
-    `${data.testStats.profit}`,
-    `${data.testStats.alpha}`,
-    `${data.testStats.sharpe}`,
-    `${data.testStats.v2ratio}`,
-    `${data.testStats.RoMaD}`,
-    `${data.testStats.winRate}`
-    //...dingdong(data.testStats),
+    `${data.results.currency}`,
+    `${data.results.RTs}`,
+    `${data.results.profit}`,
+    `${data.results.alpha}`,
+    `${data.results.sharpe}`,
+    `${data.results.v2ratio}`,
+    `${data.results.RoMaD}`,
+    `${data.results.winRate}`
+    //...dingdong(data.results),
   ]);
   //<DisplayTable headers={headers} data={tableData} />
   //tableData.unshift(headers);
@@ -89,4 +90,4 @@ const GenomeTable = (props) => {
   return <>{display}</>;
 };
 
-export default GenomeTable;
+export default BacktestTable;

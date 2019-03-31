@@ -28,8 +28,14 @@ export default () => (
           <Button color="primary" component={Link} to="/GA">
             GA
           </Button>
+          <Button color="primary" component={Link} to="/Charts">
+            Charts
+          </Button>
           <Button color="primary" component={Link} to="/Genomes">
             Genomes
+          </Button>
+          <Button color="primary" component={Link} to="/BacktestResults">
+            Backtest Results
           </Button>
           <Button color="primary" component={Link} to="/papertrader">
             Paper Trader

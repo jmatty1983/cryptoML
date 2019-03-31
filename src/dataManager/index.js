@@ -4,6 +4,17 @@ const ArrayUtils = require("../lib/array");
 const Indicators = require("./indicators");
 const { Logger } = require("../logger");
 
+const {
+  //traderConfig,
+  indicatorConfig,
+  neatConfig
+} = require("../config/config");
+
+const normaliseFunctions = {
+  percentageChangeLog2: require("./normFuncs").percentChange
+    .percentageChangeLog2
+};
+
 const limit = 100000;
 const candleTypes = ["tick", "time", "volume", "currency"];
 
@@ -133,11 +144,32 @@ const DataManager = {
    * @returns {integer}
    */
   getNewestTrade: function(table) {
-    return this.checkDataExists(table)
-      ? this.getDb()
-          .prepare(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`)
-          .get()
-      : 0;
+    if (this.checkDataExists(table)) {
+      const ret = this.getDb()
+        .prepare(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`)
+        .get();
+
+      return ret.lastId;
+    } else {
+      return 0;
+    }
+  },
+
+    /**
+   * Returns latest candle
+   * @param {string} table
+   * @returns {integer}
+   */
+  getNewestCandle: function(table) {
+    if (this.checkDataExists(table)) {
+      const ret = this.getDb()
+        .prepare(`SELECT * FROM [${table}] ORDER BY id DESC LIMIT 1;`)
+        .get();
+
+      return ret;
+    } else {
+      return 0;
+    }
   },
 
   /**
@@ -180,7 +212,7 @@ const DataManager = {
    * @param {string} length - length of candle
    * @param {array} indicators - indicators to use
    *
-   * @return {array[array]} - an array of arrays with open, close, high, low, volume and any indicators requested
+   * @return {array[array]} - an array of arrays with open, close, high, low, volume, startTime, endTime, lasttradeID and any indicators requested
    */
   loadData: function(pair, type, length, indicators = []) {
     const candles = this.loadCandles(
@@ -192,7 +224,9 @@ const DataManager = {
       ArrayUtils.getProp("low", candles),
       ArrayUtils.getProp("close", candles),
       ArrayUtils.getProp("volume", candles),
-      ArrayUtils.getProp("startTime", candles)
+      ArrayUtils.getProp("startTime", candles),
+      ArrayUtils.getProp("endTime", candles),
+      ArrayUtils.getProp("tradeId", candles)
     ];
 
     indicators.forEach(({ name, params }) =>
@@ -206,7 +240,45 @@ const DataManager = {
     candleArrays = candleArrays.map(array =>
       array.slice(array.length - minLength, array.length)
     );
+    //console.log(candleArrays);
     return candleArrays;
+  },
+
+  /**
+   * Normalises Candle Data
+   *
+   * @param {array} candle data - array of raw candle data
+   *
+   * @param {object} Config data - array of raw candle data
+   *
+   * @return {array[array]} - an array of normalised arrays with open, close, high, low, volume, and any indicators requested
+   */
+  normaliseData: function(rawCandles, nConfig = neatConfig, indConfig = indicatorConfig) {
+    this.data = rawCandles;
+    this.neatConfig = nConfig;
+
+    const dataToIndex = {
+      opens: 0,
+      highs: 1,
+      lows: 2,
+      closes: 3,
+      volumes: 4,
+      startTime: 5,
+      endTime: 6,
+      tradeId: 7
+    };
+
+    const normalisedCandleData = this.neatConfig.inputs.map(
+      ({ name, normFunc }) =>
+        normaliseFunctions[normFunc](this.data[dataToIndex[name]])
+    );
+    const normalisedIndicatorData = this.data
+      .slice(Object.keys(dataToIndex).length)
+      .map((array, index) => {
+        const { normFunc } = indConfig[index];
+        return normaliseFunctions[normFunc](array);
+      });
+    return [...normalisedCandleData, ...normalisedIndicatorData];
   },
 
   /**
@@ -226,7 +298,17 @@ const DataManager = {
         candle.low = trade.price < candle.low ? trade.price : candle.low;
         candle.volume += trade.quantity;
         candle.tradeId = trade.tradeId;
-        return candle;
+        //return candle;
+        return {
+          startTime: candle.startTime,
+          endTime: candle.endTime,
+          open: candle.open,
+          close: candle.close,
+          high: candle.high,
+          low: candle.low,
+          volume: candle.volume,
+          tradeId: candle.tradeId
+        }
       },
       { volume: 0, high: 0, low: Infinity }
     );
@@ -374,6 +456,63 @@ const DataManager = {
   },
 
   /**
+   * @param {string} table - table to process from
+   * @param {string} candleTable - candleTable to verify last ID from.
+   * @param {array{}} types - array of candles to update into
+   * types need to be in the format:
+   * [{
+   *   type: tick|time|volume|currency,
+   *   length: number
+   * }]
+   */
+  batchCandles: async function(table, candleTable, types) {
+    //console.log(table, candleTable)
+    const lastID = this.getNewestTrade(candleTable)
+    //console.log(this.getNewestTrade(candleTable))
+    //console.log(this.getNewestTrade(table.toUpperCase()))
+
+    let remainders = {};
+    let offset = 0;
+    let rowLen = 0;
+    do {
+      const rows = this.getDb()
+        .prepare(
+          `SELECT * FROM [${table}] WHERE tradeId >= ${lastID} ORDER BY tradeId ASC LIMIT ${limit} OFFSET ${offset}` //ASC LIMIT ${limit} OFFSET ${offset}
+        )
+        .all();
+
+      //this is working its sending the correct amount of trades from the last candleid.
+      rowLen = rows.length;
+      const candles = types.map(({ type, length }) => {
+        const extra = remainders[`${table}_${type}_${length}`]
+          ? remainders[`${table}_${type}_${length}`]
+          : [];
+
+        const built = this.buildCandles({
+          type,
+          length,
+          rows: [...extra, ...rows]
+        });
+        //console.log(built)
+        //if (built.candles.length) console.log(built.candles)
+        //if (this.getNewestTrade(candleTable) > lastID) {console.log(built.candles)}
+        return { type, length, built };
+      });
+
+      remainders = candles.reduce((remainderObj, { type, length, built }) => {
+        this.storeCandles(`${table}_${type}_${length}`, built.candles);
+        //if (built.candles.length) console.log(built.candles)
+        remainderObj[`${table}_${type}_${length}`] = built.remainder;
+        return remainderObj;
+      }, {});
+      offset += limit;
+      
+      //ugh
+      await new Promise(resolve => setTimeout(resolve, 0));
+    } while (rowLen === limit);
+  },
+
+  /**
    * Stores candle data
    * @param {string} table - table name
    * @param {array{}} candles - array of candle objects
@@ -409,7 +548,8 @@ const DataManager = {
             )
         );
       })();
-      Logger.debug(`${candles.length} added to ${table}`);
+      if (candles.length) Logger.debug(`madeCandle: true`)
+      Logger.info(`${candles.length} added to ${table}`);
     } catch (e) {
       Logger.error(e.message);
     }
@@ -452,7 +592,7 @@ const DataManager = {
         );
       })();
 
-      Logger.debug(`${batch.length} rows inserted into table`);
+      Logger.info(`${batch.length} rows inserted into table`);
     } catch (e) {
       Logger.error(e.message);
     }

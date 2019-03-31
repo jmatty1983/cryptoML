@@ -3,3 +3,7 @@ exports.sma = require("./sma");
 exports.obv = require("./obv");
 exports.kf = require("./kf");
 exports.ks = require("./ks");
+exports.zscore = require("./zscore");
+exports.median = require("./median");
+exports.mom = require("./mom");
+exports.volatility = require("./volatility");
