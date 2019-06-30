@@ -53,6 +53,39 @@ const ArrayUtils = {
   },
 
   /**
+   * Returns the median of an array of numbers
+   *
+   * @param {Array} array - array of numbers
+   * @returns {Number}
+   */
+  median: function(array) { 
+    const sorted = array.sort((a, b) => a - b);
+    let median = (sorted[(sorted.length - 1) >> 1] + sorted[sorted.length >> 1]) / 2
+    return median;
+  },
+
+  /**
+   * Returns the std of an array of numbers
+   *
+   * @param {Array} array - array of numbers
+   * @returns {Number}
+   */ 
+  stdDev: function(array) { 
+    const avg = this.sum(array) / array.length;
+  
+    const squareDiffs = array.map(function(value){
+      const diff = value - avg;
+      const sqrDiff = diff * diff;
+      return sqrDiff;
+    });
+    
+    const avgSquareDiff = this.sum(squareDiffs) / squareDiffs.length;
+  
+    const stdDev = Math.sqrt(avgSquareDiff);
+    return stdDev;
+  },
+
+  /**
    * Returns an array with arrays of the given size.
    *
    * @param myArray {Array} Array to split

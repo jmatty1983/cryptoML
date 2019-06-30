@@ -1,7 +1,4 @@
 import React, { useEffect, useState, } from "react";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import Select from '@material-ui/core/Select';
-
 
 export default (props) => {
     const [tableData, setTableData] = useState([]);

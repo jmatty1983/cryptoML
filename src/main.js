@@ -4,17 +4,13 @@ const dbExt = process.env.DB_EXT;
 
 const readline = require("readline");
 
-const { neatConfig, indicatorConfig, backtestConfig } = require("./config/config");
+const { neatConfig, indicatorConfig, traderConfig, backtestConfig } = require("./config/config");
 const ExchangeImport = require("./exchangeImporter");
 const DataManager = require("./dataManager");
-//const CandleBatcher = require("./candleBatcher/candleBatcher.js");
+const PaperTrader = require("./paperTrader");
 const { Logger } = require("./logger");
 const Neat = require("./neat");
-const Backtester = require("./tradeManager/backtester");
 const TradeManager = require("./tradeManager");
-const paperTimeout = 10000;
-
-const fs = require("fs");
 
 const args = process.argv.slice(2);
 const actions = ["import", "process", "ga", "paper", "backtest"];
@@ -36,7 +32,7 @@ switch (fn) {
     if (args[1]) {
       const exchangeImport = Object.create(ExchangeImport);
       exchangeImport.init(exchange, dataDir, dbExt);
-      exchangeImport.getPair(args[1]);
+      exchangeImport.getPair(args[1].toLowerCase());
     } else {
       Logger.error("No pair provided");
     }
@@ -56,54 +52,7 @@ switch (fn) {
         throw "No lengths provided";
       }
 
-      processCandles(args[1], args[2], args[3]);
-    } catch (e) {
-      Logger.error(e.message);
-    }
-    break;
-
-    case "update":
-    try {
-      if (!args[1]) {
-        throw "No pair provided";
-      }
-
-      if (!args[2]) {
-        throw "No types provided";
-      }
-
-      if (!args[3]) {
-        throw "No lengths provided";
-      }
-
-      batchCandles(args[1], args[2], args[3]);
-    } catch (e) {
-      Logger.error(e.message);
-    }
-    break;
-
-  case "paper":
-    try{
-      if (!args[1]) {
-        throw "No pair provided";
-      }
-
-      if (!args[2]) {
-        throw "No types provided";
-      }
-
-      if (!args[3]) {
-        throw "No lengths provided";
-      }
-      const exchangeImport = Object.create(ExchangeImport);
-      exchangeImport.init(exchange, dataDir, dbExt)
-
-      batchImport(args[1], args[2], args[3]);
-      
-      //setInterval(() => {exchangeImport.getPair(args[1]).then (() => batchCandles(args[1], args[2], args[3]))}, paperTimeout)
-      //while (true)
-      //await exchangeImport.getPair(args[1]).then (() => batchCandles(args[1], args[2], args[3]))
-
+      processCandles(args[1].toLowerCase(), args[2].toLowerCase(), args[3].toLowerCase());
     } catch (e) {
       Logger.error(e.message);
     }
@@ -127,36 +76,60 @@ switch (fn) {
       throw "No Strategy specified";
     }
 
-    //INIT DB
     this.dataManager = Object.create(DataManager);
     this.dataManager.init(exchange, dataDir, dbExt);
-    //INIT BACKTESTER
-    const backtester = Object.create(Backtester);
-    //SET PAIR/TYPE/LENGTH/STRATEGY NAME TO BACKTEST/TRADER CONFIG.
-    const pair = args[1]
-    const type = args[2]
-    const length = args[3]
+    const backtester = Object.create(TradeManager);
+    const pair = args[1].toLowerCase()
+    const type = args[2].toLowerCase()
+    const length = args[3].toLowerCase()
     const strategy = args[4]
     const indicatorConfig = []; //WE DONT USE INDCATORS FOR BACKTEST
-    //LOAD CANDLES INTO MEMORY FROM DB.
     this.data = this.dataManager.checkDataExists(pair, type, length)
           ? this.dataManager.loadData(pair, type, length, indicatorConfig)
           : [];
-    //DO BACKTEST + PRINT RESULTS.
     backtester.init(
+      null,
       strategy,
-      pair,
-      type,
-      length,
       this.data,
-      backtestConfig
+      null,
+      `${pair}_${type}_${length}`,
+      traderConfig
     );
-    backtester.runTrades();
+    backtester.runBacktest();
 
   } catch(e) {
     Logger.error(e.message);
   }
     break;
+
+  case "paper":
+    try {
+      if (!args[1]) {
+        throw "No pair specified";
+      }
+  
+      if (!args[2]) {
+        throw "No candle type specified";
+      }
+  
+      if (!args[3]) {
+        throw "No length specified";
+      }
+  
+      if (!args[4]) {
+        throw "No Genome specified";
+      }
+  
+      const pair = args[1].toLowerCase()
+      const type = args[2].toLowerCase()
+      const length = args[3].toLowerCase()
+      const genomeName = args[4]
+      runPaper(exchange, pair, type, length, genomeName, dataDir, dbExt);
+  
+    } catch(e) {
+      Logger.error(e.message);
+    }
+      break;
 
   case "ga":
     try {
@@ -174,11 +147,12 @@ switch (fn) {
 
       const neat = Object.create(Neat);
       neat.init({
-        pair: args[1],
-        type: args[2],
-        length: args[3],
+        pair: args[1].toLowerCase(),
+        type: args[2].toLowerCase(),
+        length: args[3].toLowerCase(),
         neatConfig,
         indicatorConfig,
+        traderConfig,
         exchange,
         dataDir,
         dbExt
@@ -195,7 +169,7 @@ switch (fn) {
           } would you like it processed now? (y/n)`,
           answer => {
             if (answer.toLowerCase() === "y") {
-              processCandles(args[1], args[2], args[3]).then(() =>
+              processCandles(args[1].toLowerCase(), args[2].toLowerCase(), args[3].toLowerCase()).then(() =>
                 Logger.info("Data processed. You can run GA again.")
               );
             } else {
@@ -220,22 +194,14 @@ async function processCandles(pair, type, length) {
   dataManager.init(exchange, dataDir, dbExt);
 
   const types = length.split(",").map(length => ({ type: type, length }));
-  await dataManager.processCandles(pair, types);
+  await dataManager.processCandles(pair, `${pair.toLowerCase()}_${type}_${length}`, types);
 }
 
-async function batchCandles(pair, type, length) {
-  const dataManager = Object.create(DataManager);
-  dataManager.init(exchange, dataDir, dbExt);
+async function runPaper(exchange, pair, type, length, genomeName, dataDir, dbExt) {
+  const paperTrader = Object.create(PaperTrader);
+  paperTrader.init(exchange, pair, type, length, genomeName, dataDir, dbExt);
 
-  const types = length.split(",").map(length => ({ type: type, length }));
-  await dataManager.batchCandles(pair, `${pair.toLowerCase()}_${type}_${length}`, types);
+  while(true) {
+    await paperTrader.doPaper();
 }
-
-async function batchImport(pair, type, length) {
-  const exchangeImport = Object.create(ExchangeImport);
-  exchangeImport.init(pair,type,length);
-
-  while (true)
-  await exchangeImport.getPair(pair).then (() => batchCandles(pair, type, length))
 }
-

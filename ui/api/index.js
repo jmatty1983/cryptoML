@@ -40,7 +40,6 @@ router.get("/genomes/trades/:genome", (req, res) => {
   );
   //LOAD DATA FROM JSON AND PARSE GENOME DATA.
   const genomeData = JSON.parse(fs.readFileSync(genomeName, "utf8"));
-  console.log(genomeData)
   const network = Network.fromJSON(genomeData.genome);
   const neatConfig = genomeData.neatConfig;
   const indConfig = genomeData.indicatorConfig;
@@ -53,7 +52,7 @@ router.get("/genomes/trades/:genome", (req, res) => {
   const candlesNormalised = dataManager.normaliseData(candles, neatConfig, indConfig);
   //INIT tradeManager & feed it genome, candlesRaw, candlesNormalised, and the traderConfig.
   const trader = Object.create(TradeManager);
-  trader.init(network, candles, candlesNormalised, traderConfig);
+  trader.init(network, candles, candlesNormalised, `${asset_currency_type_length}`, traderConfig);
   const genomeTrades = trader.runTrades();
 
   res.json(genomeTrades);
@@ -66,7 +65,7 @@ router.get("/genomes/trades/:genome", (req, res) => {
 router.get("/backtest/chartTrades/:backtest", (req, res) => {
   //DECLARE ALL CONSTS.
   const param = `${decodeURIComponent(req.params.backtest)}`;
-  const [strategy, asset, currency, type, length] = param.split("_");
+  const [date, strategy, asset, currency, type, length] = param.split("_");
   const backtestName = path.join(
     `${__dirname}`,
     "..",
@@ -78,11 +77,13 @@ router.get("/backtest/chartTrades/:backtest", (req, res) => {
   //LOAD DATA FROM JSON AND PARSE GENOME DATA.
   const backtestData = JSON.parse(fs.readFileSync(backtestName, "utf8"));
   //console.log(backtestData)
-  const backtestTrades = backtestData.results.trades;
+  const backtestTradesLong = backtestData.results.tradesLong;
+  //console.log(backtestTradesLong)
+  const backtestTradesShort = backtestData.results.tradesShort;
   //Map data into a format anyCharts accepts for event markers.
-  const longEvents = backtestTrades
+  const longEvents = backtestTradesLong
   .filter(
-    ({ type, time, actionPrice, asset, balance, currency }) => type == "longOpen"
+    ({ type, time, actionPrice, asset, balance, currency }) => type == "openLong"
   )
   .map(({ type, time, actionPrice, asset, balance, currency }) => ({
     date: `${time}`,
@@ -91,9 +92,9 @@ router.get("/backtest/chartTrades/:backtest", (req, res) => {
                     Wallet Value: ${balance}.
                     `
   }));
-  const longCloseEvents = backtestTrades
+  const longCloseEvents = backtestTradesLong
     .filter(
-      ({ type, time, actionPrice, asset, balance, currency }) => type == "longClose"
+      ({ type, time, actionPrice, asset, balance, currency }) => type == "closeLong"
     )
     .map(({ type, time, actionPrice, asset, balance, currency }) => ({
       date: `${time}`,
@@ -102,9 +103,9 @@ router.get("/backtest/chartTrades/:backtest", (req, res) => {
                       Wallet Value: ${balance}.
                       `
     }));
-  const shortEvents = backtestTrades
+  const shortEvents = backtestTradesShort
     .filter(
-      ({ type, time, actionPrice, asset, balance, currency }) => type == "shortOpen"
+      ({ type, time, actionPrice, asset, balance, currency }) => type == "openShort"
     )
     .map(({ type, time, actionPrice, asset, balance, currency }) => ({
       date: `${time}`,
@@ -113,9 +114,9 @@ router.get("/backtest/chartTrades/:backtest", (req, res) => {
                       Wallet Value: ${balance}.
                       `
     }));
-  const shortCloseEvents = backtestTrades
+  const shortCloseEvents = backtestTradesShort
     .filter(
-      ({ type, time, actionPrice, asset, balance, currency }) => type == "shortClose"
+      ({ type, time, actionPrice, asset, balance, currency }) => type == "closeShort"
     )
     .map(({ type, time, actionPrice, asset, balance, currency }) => ({
       date: `${time}`,
@@ -134,7 +135,7 @@ router.get("/backtest/chartTrades/:backtest", (req, res) => {
       {
         format: "SHORT CLOSE",
         data: shortCloseEvents,
-        fill: "#086ad3"
+        fill: "#000000"
       },
       {
         format: "LONG",
@@ -185,10 +186,10 @@ router.get("/genomes/chartTrades/:genome", (req, res) => {
   const candlesNormalised = dataManager.normaliseData(candles, neatConfig, indConfig);
   //INIT tradeManager & feed it genome, candlesRaw, candlesNormalised, and the traderConfig.
   const trader = Object.create(TradeManager);
-  trader.init(network, candles, candlesNormalised, traderConfig);
+  trader.init(network, candles, candlesNormalised, `${asset_currency_type_length}`, traderConfig);
   const genomeTrades = trader.runTrades();
   //Map data into a format anyCharts accepts for event markers.
-  const buyEvents = genomeTrades.trades
+  /*const buyEvents = genomeTrades.trades
     .filter(
       ({ type, time, actionPrice, asset, balance, currency }) => type == "open"
     )
@@ -209,8 +210,8 @@ router.get("/genomes/chartTrades/:genome", (req, res) => {
                       Transaction Value: ${asset * actionPrice}.
                       Wallet Value: ${balance}.
                       `
-    }));
-  const eventMarkers = {
+    }));*/
+  /*const eventMarkers = {
     groups: [
       {
         format: "BUY",
@@ -223,7 +224,77 @@ router.get("/genomes/chartTrades/:genome", (req, res) => {
         fill: "#f45341"
       }
     ]
-  };  
+  };*/  
+
+  const longEvents = genomeTrades.trades
+  .filter(
+    ({ type, time, actionPrice, asset, balance, currency }) => type == "openLong"
+  )
+  .map(({ type, time, actionPrice, asset, balance, currency }) => ({
+    date: `${time}`,
+    description: `Bought ${asset} @ ${actionPrice}.
+                    Transaction Value: ${asset * actionPrice}.
+                    Wallet Value: ${balance}.
+                    `
+  }));
+  const longCloseEvents = genomeTrades.trades
+    .filter(
+      ({ type, time, actionPrice, asset, balance, currency }) => type == "closeLong"
+    )
+    .map(({ type, time, actionPrice, asset, balance, currency }) => ({
+      date: `${time}`,
+      description: `Sold ${asset} @ ${actionPrice}.
+                      Transaction Value: ${asset * actionPrice}.
+                      Wallet Value: ${balance}.
+                      `
+    }));
+  const shortEvents = genomeTrades.trades
+    .filter(
+      ({ type, time, actionPrice, asset, balance, currency }) => type == "openShort"
+    )
+    .map(({ type, time, actionPrice, asset, balance, currency }) => ({
+      date: `${time}`,
+      description: `Bought ${asset} @ ${actionPrice}.
+                      Transaction Value: ${asset * actionPrice}.
+                      Wallet Value: ${balance}.
+                      `
+    }));
+  const shortCloseEvents = genomeTrades.trades
+    .filter(
+      ({ type, time, actionPrice, asset, balance, currency }) => type == "closeShort"
+    )
+    .map(({ type, time, actionPrice, asset, balance, currency }) => ({
+      date: `${time}`,
+      description: `Sold ${asset} @ ${actionPrice}.
+                      Transaction Value: ${asset * actionPrice}.
+                      Wallet Value: ${balance}.
+                      `
+    }));
+  const eventMarkers = {
+    groups: [
+      {
+        format: "SHORT",
+        data: shortEvents,
+        fill: "#f45341"
+      },
+      {
+        format: "SHORT CLOSE",
+        data: shortCloseEvents,
+        fill: "#000000"
+      },
+      {
+        format: "LONG",
+        data: longEvents,
+        fill: "#42f459"
+      },
+      {
+        format: "LONG CLOSE",
+        data: longCloseEvents,
+        fill: "#000000"
+      },
+
+    ]
+  }; 
 
   res.json(eventMarkers);
 });
@@ -258,7 +329,7 @@ router.get("/genomes/pnl/:genome", (req, res) => {
   const candlesNormalised = dataManager.normaliseData(candles, neatConfig, indConfig);
   //INIT tradeManager & feed it genome, candlesRaw, candlesNormalised, and the traderConfig.
   const trader = Object.create(TradeManager);
-  trader.init(network, candles, candlesNormalised, traderConfig);
+  trader.init(network, candles, candlesNormalised, `${asset_currency_type_length}`, traderConfig);
   const tradeData = trader.runTrades();
   const [
     opens,
@@ -309,7 +380,7 @@ router.get("/genomes/tickstats/:genome", (req, res) => {
   const candlesNormalised = dataManager.normaliseData(candles, neatConfig, indConfig);
   //INIT tradeManager & feed it genome, candlesRaw, candlesNormalised, and the traderConfig.
   const trader = Object.create(TradeManager);
-  trader.init(network, candles, candlesNormalised, traderConfig);
+  trader.init(network, candles, candlesNormalised, `${asset_currency_type_length}`, traderConfig);
   const tradeStats = trader.runStats();
 
   res.json(tradeStats);
@@ -344,7 +415,7 @@ router.get("/genomes/stats/:genome", (req, res) => {
   const candlesNormalised = dataManager.normaliseData(candles, neatConfig, indConfig);
   //INIT tradeManager & feed it genome, candlesRaw, candlesNormalised, and the traderConfig.
   const trader = Object.create(TradeManager);
-  trader.init(network, candles, candlesNormalised, traderConfig);
+  trader.init(network, candles, candlesNormalised, `${asset_currency_type_length}`, traderConfig);
   const tradeStats = trader.runTrades();
 
   res.json(tradeStats);
@@ -404,7 +475,7 @@ router.get("/backtest/chart/:backtest", (req, res) => {
     },
   ];
   const param = `${decodeURIComponent(req.params.backtest)}`; //STRATNAME_ASSET_CURRENT_TYPE_LENGTH_DATE
-  const [strategy, asset, currency, type, length] = param.split("_");
+  const [date, strategy, asset, currency, type, length] = param.split("_");
   const pairName = `${asset}/${currency}`;
   const dataManager = Object.create(DataManager);
   dataManager.init(exchange, dataDir, dbExt);
@@ -429,8 +500,7 @@ router.get("/backtest/chart/:backtest", (req, res) => {
 //Route to get a list of genomes
 router.get("/genomes", (req, res) => {
   const genomeDir = "./genomes/";
-  //const genomesFinal = [];
-
+  
   const walkSync = dir =>
     fs.readdirSync(dir).reduce((files, file) => {
       const name = path.join(dir, file);

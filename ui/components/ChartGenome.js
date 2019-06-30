@@ -1,16 +1,13 @@
 import React, { useEffect, useState } from "react";
 import CircularProgress from "@material-ui/core/CircularProgress";
-//import Layout from "../components/Layout";
 import AnyChart from "anychart-react";
 import anychart from "anychart";
 import "./themes/dark_turquoise.js"
 
 const Chart = (props) => {
-  //const table = props.match.params.genome;
   const {genome} = props;
   const [data, setData] = useState([]);
   const [trades, setTrades] = useState({});
-  //const [tradelist, setTradeList] = useState({});
   const [loading, setLoading] = useState(true);
 
   const fetchData = async table => {
@@ -27,22 +24,12 @@ const Chart = (props) => {
     setLoading(false);
   };
 
-  /*const fetchTradeList = async list => {
-    const response = await fetch(`/api/genomes/trades/${genome}`);
-    const json = await response.json();
-    setTradeList(json);
-    setLoading(false);
-  };*/
-
-
   useEffect(() => {
     setLoading(true);
     fetchData(genome);
     fetchTrades(genome);
-    //fetchTradeList(genome);
   }, [genome]);
 
-  //console.log(trades);
   anychart.theme("darkTurquoise");
   const chartData = anychart.data.table();
   chartData.addData(data);
@@ -52,7 +39,6 @@ const Chart = (props) => {
   mapping.addField("low", 3);
   mapping.addField("close", 4);
   mapping.addField("value", 5);
-  //mapping.addField("sma", 6);
   const chart = anychart.stock();
   
   //FIRST PLOT
@@ -60,10 +46,6 @@ const Chart = (props) => {
   // create candlestick series
   plot.line()
   .data(chartData.mapAs({'value': 4}))
-  //.data(chartData.mapAs({'value': 6}))
-
-  //chart.plot(0).candlestick(mapping);
-  //plot.candlestick(mapping)
 
   plot.eventMarkers(trades);
 
@@ -72,12 +54,9 @@ const Chart = (props) => {
   eventMarkers
     .position("series")
     .seriesId(0)
-    .type("flag")
+    .type("circle")
     .direction("up")
 
-  // get eventMarkers
-  //const eventMarkers = plot.eventMarkers();
-  //eventMarkers.type('flag');
 
   // create second plot
   const volumePlot = chart.plot(1);
@@ -110,8 +89,6 @@ const Chart = (props) => {
   var rangeSelector = anychart.ui.rangeSelector();
   // init range selector
   rangeSelector.render(chart);
-
-  //console.log(data);
 
   const page = (
     <>

@@ -5,7 +5,7 @@ const closed = [];
 const smaLength = 24;
 const emaLength = 12;
 
-let currPosition = "none";
+let currPosition = 0;
 let sma = 0;
 let smaFast = 0;
 
@@ -14,7 +14,7 @@ const EXAMPLE = (candle) =>
 {   
     const currPrice = candle[3]
     let pos = currPosition;
-    let output = ["none", 0]
+    let output = [0, 0]
     //console.log(pos)
     const [open, high, low, close, volume, startTime, endTime, tradeId] = candle.map((row) => row);
     //console.log(close)
@@ -38,13 +38,13 @@ const EXAMPLE = (candle) =>
             smaFast = Math.floor(results[0] * 100) / 100.0;
           });
 
-          if (currPrice > sma && pos == "none") {
-            currPosition = "long" 
-            output = ["long", 100]
+          if (currPrice > sma && pos == 0) {
+            currPosition = 1
+            output = [1, 1]
             //console.log(`LONG @ ${candle[3]}. FAST:${smaFast} SLOW:${sma} TIMESTAMP:${endTime}`) 
-        } else if (currPrice < sma && pos == "long") {
-            currPosition = "none" 
-            output = ["closelong", 100]
+        } else if (currPrice < sma && pos == 1) {
+            currPosition = 0
+            output = [-1, 1]
             //console.log(`EXIT LONG @ ${candle[3]}. FAST:${smaFast} SLOW:${sma} TIMESTAMP:${endTime}`) 
         }
         /*if (currPrice < results[0] && pos == "none") {

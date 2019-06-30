@@ -1,27 +1,15 @@
-
-
-const low = Math.min(...this.candles.map(item => item.low))
-const high = Math.max(...this.candles.map(item => item.high))
-if (this.candles.length > this.KPeriods)
-    this.candles.shift();
-
-let K = candle.close - low;
-K = K / (high - low) * 100 || 0;
-
 const ArrayUtils = require("../../lib/array");
 
-const STOCH = ({ length, index }, candles) =>
+const STOCH = ({ length, index = 3 }, candles) =>
   candles[index].reduce((stoch, item, idx, array) => {
       
-    const low = Math.min(...this.candles.map(item => item.low))
-    const high = Math.max(...this.candles.map(item => item.high))
+    const low = Math.min(array.map(item => item))
+    const high = Math.max(array.map(item => item))
     
-    let K = candle.close - low;
-    K = K / (high - low) * 100 || 0;
-    stoch.push(
-      ArrayUtils.average(array.slice(Math.max(0, idx + 1 - length), idx + 1))
-    );
-    //console.log("sma", sma)
+    let K = item - low;
+    K = K / (high - low) * 100
+    stoch.push(K);
+    console.log(K)
     return stoch;
   }, []);
 

@@ -1,17 +1,15 @@
 import React, { useEffect, useState } from "react";
-import DisplayTable from "./DisplayTable";
 import MUIDataTable from "mui-datatables";
-//import Layout from "../components/Layout";
 
 const GenomeTable = (props) => {
   const [data, setData] = useState([]);
-  //const [genome, setGenome] = useState(0)
   const [loading, setLoading] = useState(true);
 
   const options = {
     rowsPerPage: 100,
     pagination: true,
-    filter: false,
+    filter: true,
+    sort: true,
     print: false,
   };
 
@@ -44,36 +42,18 @@ const GenomeTable = (props) => {
     "winRate",
   ];
 
-  function dingdong(foo) {
-    return Object.keys(foo).map(i => foo[i].toString());
-  }
-
-
   const tableData = data.map(({ name, data }) => [
     name,
-    /*data.testStats.currency,
-    data.testStats.RTs,
-    data.testStats.profit,
-    data.testStats.alpha,
-    data.testStats.sharpe,
-    data.testStats.v2ratio,
-    data.testStats.RoMaD,
-    data.testStats.winRate,
-*/
-    `${data.testStats.currency}`,
-    `${data.testStats.RTs}`,
-    `${data.testStats.profit}`,
-    `${data.testStats.alpha}`,
-    `${data.testStats.sharpe}`,
-    `${data.testStats.v2ratio}`,
-    `${data.testStats.RoMaD}`,
-    `${data.testStats.winRate}`
-    //...dingdong(data.testStats),
+    `${parseFloat(data.testStats.currency).toFixed(2)}`,
+    `${parseFloat(data.testStats.RTs).toFixed(2)}`,
+    `${parseFloat(data.testStats.profit).toFixed(2)}`,
+    `${parseFloat(data.testStats.alpha).toFixed(2)}`,
+    `${parseFloat(data.testStats.sharpe).toFixed(2)}`,
+    `${parseFloat(data.testStats.v2ratio).toFixed(2)}`,
+    `${parseFloat(data.testStats.RoMaD).toFixed(2)}`,
+    `${parseFloat(data.testStats.winRate).toFixed(2)}`
   ]);
-  //<DisplayTable headers={headers} data={tableData} />
-  //tableData.unshift(headers);
 
-  console.log(tableData);
   const page = (
     <>
             <MUIDataTable

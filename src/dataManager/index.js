@@ -4,12 +4,6 @@ const ArrayUtils = require("../lib/array");
 const Indicators = require("./indicators");
 const { Logger } = require("../logger");
 
-const {
-  //traderConfig,
-  indicatorConfig,
-  neatConfig
-} = require("../config/config");
-
 const normaliseFunctions = {
   percentageChangeLog2: require("./normFuncs").percentChange
     .percentageChangeLog2
@@ -155,23 +149,6 @@ const DataManager = {
     }
   },
 
-    /**
-   * Returns latest candle
-   * @param {string} table
-   * @returns {integer}
-   */
-  getNewestCandle: function(table) {
-    if (this.checkDataExists(table)) {
-      const ret = this.getDb()
-        .prepare(`SELECT * FROM [${table}] ORDER BY id DESC LIMIT 1;`)
-        .get();
-
-      return ret;
-    } else {
-      return 0;
-    }
-  },
-
   /**
    * Returns an array of tables names that are processed candles
    * @returns {array}
@@ -240,7 +217,7 @@ const DataManager = {
     candleArrays = candleArrays.map(array =>
       array.slice(array.length - minLength, array.length)
     );
-    //console.log(candleArrays);
+
     return candleArrays;
   },
 
@@ -253,10 +230,7 @@ const DataManager = {
    *
    * @return {array[array]} - an array of normalised arrays with open, close, high, low, volume, and any indicators requested
    */
-  normaliseData: function(rawCandles, nConfig = neatConfig, indConfig = indicatorConfig) {
-    this.data = rawCandles;
-    this.neatConfig = nConfig;
-
+  normaliseData: function(rawCandles, neatConfig, indicatorConfig) {
     const dataToIndex = {
       opens: 0,
       highs: 1,
@@ -268,14 +242,14 @@ const DataManager = {
       tradeId: 7
     };
 
-    const normalisedCandleData = this.neatConfig.inputs.map(
+    const normalisedCandleData = neatConfig.inputs.map(
       ({ name, normFunc }) =>
-        normaliseFunctions[normFunc](this.data[dataToIndex[name]])
+        normaliseFunctions[normFunc](rawCandles[dataToIndex[name]])
     );
-    const normalisedIndicatorData = this.data
+    const normalisedIndicatorData = rawCandles
       .slice(Object.keys(dataToIndex).length)
       .map((array, index) => {
-        const { normFunc } = indConfig[index];
+        const { normFunc } = indicatorConfig[index];
         return normaliseFunctions[normFunc](array);
       });
     return [...normalisedCandleData, ...normalisedIndicatorData];
@@ -406,57 +380,6 @@ const DataManager = {
 
   /**
    * @param {string} table - table to process from
-   * @param {array{}} types - array of candles to process into
-   * types need to be in the format:
-   * [{
-   *   type: tick|time|volume|currency,
-   *   length: number
-   * }]
-   */
-  processCandles: async function(table, types) {
-    types.forEach(({ type, length }) =>
-      this.getDb()
-        .prepare(`DROP TABLE IF EXISTS [${table}_${type}_${length}]`)
-        .run()
-    );
-
-    let remainders = {};
-    let offset = 0;
-    let rowLen = 0;
-    do {
-      const rows = this.getDb()
-        .prepare(
-          `SELECT * FROM [${table}] ORDER BY tradeId ASC LIMIT ${limit} OFFSET ${offset}`
-        )
-        .all();
-
-      rowLen = rows.length;
-      const candles = types.map(({ type, length }) => {
-        const extra = remainders[`${table}_${type}_${length}`]
-          ? remainders[`${table}_${type}_${length}`]
-          : [];
-
-        const built = this.buildCandles({
-          type,
-          length,
-          rows: [...extra, ...rows]
-        });
-        return { type, length, built };
-      });
-
-      remainders = candles.reduce((remainderObj, { type, length, built }) => {
-        this.storeCandles(`${table}_${type}_${length}`, built.candles);
-        remainderObj[`${table}_${type}_${length}`] = built.remainder;
-        return remainderObj;
-      }, {});
-      offset += limit;
-      //ugh
-      await new Promise(resolve => setTimeout(resolve, 0));
-    } while (rowLen === limit);
-  },
-
-  /**
-   * @param {string} table - table to process from
    * @param {string} candleTable - candleTable to verify last ID from.
    * @param {array{}} types - array of candles to update into
    * types need to be in the format:
@@ -465,11 +388,8 @@ const DataManager = {
    *   length: number
    * }]
    */
-  batchCandles: async function(table, candleTable, types) {
-    //console.log(table, candleTable)
+  processCandles: async function(table, candleTable, types) {
     const lastID = this.getNewestTrade(candleTable)
-    //console.log(this.getNewestTrade(candleTable))
-    //console.log(this.getNewestTrade(table.toUpperCase()))
 
     let remainders = {};
     let offset = 0;
@@ -477,11 +397,10 @@ const DataManager = {
     do {
       const rows = this.getDb()
         .prepare(
-          `SELECT * FROM [${table}] WHERE tradeId >= ${lastID} ORDER BY tradeId ASC LIMIT ${limit} OFFSET ${offset}` //ASC LIMIT ${limit} OFFSET ${offset}
+          `SELECT * FROM [${table}] WHERE tradeId >= ${lastID} ORDER BY tradeId ASC LIMIT ${limit} OFFSET ${offset}`
         )
         .all();
 
-      //this is working its sending the correct amount of trades from the last candleid.
       rowLen = rows.length;
       const candles = types.map(({ type, length }) => {
         const extra = remainders[`${table}_${type}_${length}`]
@@ -493,15 +412,11 @@ const DataManager = {
           length,
           rows: [...extra, ...rows]
         });
-        //console.log(built)
-        //if (built.candles.length) console.log(built.candles)
-        //if (this.getNewestTrade(candleTable) > lastID) {console.log(built.candles)}
         return { type, length, built };
       });
 
       remainders = candles.reduce((remainderObj, { type, length, built }) => {
         this.storeCandles(`${table}_${type}_${length}`, built.candles);
-        //if (built.candles.length) console.log(built.candles)
         remainderObj[`${table}_${type}_${length}`] = built.remainder;
         return remainderObj;
       }, {});
@@ -548,7 +463,6 @@ const DataManager = {
             )
         );
       })();
-      if (candles.length) Logger.debug(`madeCandle: true`)
       Logger.info(`${candles.length} added to ${table}`);
     } catch (e) {
       Logger.error(e.message);

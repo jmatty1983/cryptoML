@@ -13,6 +13,7 @@ pids
 
 # Dependency directories
 node_modules/
+node_modules_/
 
 # Optional npm cache directory
 .npm
@@ -23,6 +24,8 @@ node_modules/
 # sqlite stuffs
 data/
 genomes/
+backtests/
+tensorflow/
 
 # doc stuff which maybe i won't ignore later but for now it's not super useful
 docs/

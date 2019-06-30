@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import CircularProgress from "@material-ui/core/CircularProgress";
-//import Layout from "../components/Layout";
 import AnyChart from "anychart-react";
 import anychart from "anychart";
 import "./themes/dark_turquoise.js"
@@ -31,7 +30,6 @@ const Chart = (props) => {
     fetchTrades(backtest);
   }, [backtest]);
 
-  //console.log(trades);
   anychart.theme("darkTurquoise");
   const chartData = anychart.data.table();
   chartData.addData(data);
@@ -59,7 +57,7 @@ const Chart = (props) => {
   eventMarkers
     .position("series")
     .seriesId(0)
-    .type("flag")
+    .type("circle")
     .direction("up")
 
 
@@ -94,8 +92,6 @@ const Chart = (props) => {
   var rangeSelector = anychart.ui.rangeSelector();
   // init range selector
   rangeSelector.render(chart);
-
-  //console.log(data);
 
   const page = (
     <>

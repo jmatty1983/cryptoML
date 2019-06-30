@@ -6,6 +6,8 @@ const OBV = ([opens, , , closes, volume]) =>
     lastObv += delta < 0 ? -volume[idx] : delta > 0 ? volume[idx] : 0;
     obv.push(lastObv);
 
+    console.log(obv)
+
     return obv;
   }, []);
 

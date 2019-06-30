@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react";
 import CircularProgress from "@material-ui/core/CircularProgress";
-//import Layout from "../components/Layout";
 import AnyChart from "anychart-react";
 import anychart from "anychart";
 import "./themes/dark_turquoise.js"
 
 const Chart = (props) => {
-  //const table = props.match.params.table;
   const {table} = props;
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,9 +21,6 @@ const Chart = (props) => {
     fetchData(table);
   }, [table]);
 
-  //console.log(data);
-
-  //this won't be quite right but just want to see if i can get it drawn
   const candleData = data.map(
     ({ endTime, low, open, close, high, volume }, index) => [
       endTime,
@@ -36,9 +31,6 @@ const Chart = (props) => {
       volume
     ]
   );
-  //.slice(0, 5000);
-
-  //console.log(candleData);
 
   anychart.theme("darkTurquoise");
   const chartData = anychart.data.table();
@@ -85,8 +77,6 @@ const Chart = (props) => {
   var rangeSelector = anychart.ui.rangeSelector();
   // init range selector
   rangeSelector.render(chart);
-
-  //console.log(data);
 
   const page = (
     <>

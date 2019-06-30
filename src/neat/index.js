@@ -3,7 +3,6 @@ const crypto = require("crypto");
 const { EventEmitter } = require("events");
 const fs = require("fs");
 const GBOS = require("GBOS-js");
-//const histc = require("histc");
 const { Neat, methods, architect } = require("neataptic");
 const noveltySearch = require("./noveltySearch/index.js");
 const os = require("os");
@@ -12,27 +11,13 @@ const displayStats = require("./displayDebugStats");
 
 const { Worker, MessageChannel } = require("worker_threads");
 
-/*const normaliseFunctions = {
-  percentageChangeLog2: require("../dataManager/normFuncs").percentChange
-    .percentageChangeLog2
-};*/
-
-// console.log(normaliseFunctions)
-
 const ArrayUtils = require("../lib/array");
-const {
-  traderConfig,
-  indicatorConfig,
-  neatConfig
-} = require("../config/config");
 const DataManager = require("../dataManager");
 const { Logger } = require("../logger");
 
 // eww
 
 const mutation = methods.mutation;
-
-// mutation.SWAP_NODES.mutateOutput = false;
 
 const mutations = [
   mutation.ADD_NODE,
@@ -67,11 +52,12 @@ const mutations = [
 ];
 
 const NeatTrainer = {
-  init: function({ exchange, pair, type, length, dataDir, dbExt }) {
+    init: function({pair, type, length, neatConfig, indicatorConfig, traderConfig, exchange, dataDir, dbExt}){ //Moved all configs just to main.js
     this.dataManager = Object.create(DataManager);
     this.dataManager.init(exchange, dataDir, dbExt);
     this.neatConfig = neatConfig;
     this.indicatorConfig = indicatorConfig;
+    this.traderConfig = traderConfig;
     this.generation = 0;
     this.highScore = -Infinity;
     this.pair = pair;
@@ -88,13 +74,6 @@ const NeatTrainer = {
     this.neatConfig.noveltySearchObjectives = addObjSD(
       this.neatConfig.noveltySearchObjectives
     );
-    // this.neatConfig.localCompetitionObjectives = addObjSD(this.neatConfig.localCompetitionObjectives)
-    // this.neatConfig.sortingObjectives = addObjSD(this.neatConfig.sortingObjectives)
-
-    // console.log(this.neatConfig.noveltySearchObjectives)
-    // console.log(this.neatConfig.localCompetitionObjectives)
-    // console.log(this.neatConfig.sortingObjectives)
-
     this.workers = Array(
       parseInt(process.env.THREADS) || os.cpus().length
     ).fill(null);
@@ -199,12 +178,12 @@ const NeatTrainer = {
       }
       if (!fs.existsSync(`${dir}/${filename}`)) {
         const data = {
-          genome: genome.toJSON(),
+          genome: genome,
           trainStats: genome.stats,
           testStats: genome.testStats,
-          traderConfig,
-          indicatorConfig,
-          neatConfig
+          traderConfig: this.traderConfig,
+          indicatorConfig: this.indicatorConfig,
+          neatConfig: this.neatConfig
         };
         fs.writeFileSync(`${dir}/${filename}`, JSON.stringify(data));
       }
@@ -287,14 +266,6 @@ const NeatTrainer = {
 
     this.neat.population = [...this.parentPopulation, ...this.neat.population];
 
-    /*    const index =  Math.floor(Math.random()*this.parentPopulation.length)
-    this.neat.population = 
-    [
-      ...this.neat.population,
-      ...this.parentPopulation.splice(index),
-      ...this.parentPopulation.splice(0,index)
-    ]*/
-
     const nsObj = ArrayUtils.getProp(
       "noveltySearchObjectives",
       this.neat.population
@@ -339,7 +310,7 @@ const NeatTrainer = {
     const sorted = GBOS(toSort);
     sorted.forEach((rank, index) => {
       const genome = this.neat.population[index];
-      genome.score = -rank; // + genome.stats.lcs[0]
+      genome.score = -rank;
     });
 
     this.neat.sort();
@@ -361,7 +332,8 @@ const NeatTrainer = {
   },
 
   train: async function() {
-    //Really considering abstracting the worker log it some where else. It doesn't really belong here.
+
+     //Really considering abstracting the worker log it some where else. It doesn't really belong here.
     this.neat.population.forEach((genome, i) => {
       genome.id = i;
       genome.generation = this.generation;
@@ -396,6 +368,7 @@ const NeatTrainer = {
 
     let combineResults = stats => {
       // we need to calculate winrate here, for a correct result
+      //as well as store trades
       const wr = stats.reduce(
         (acc, val) => {
           (acc.w += val.tradesWon), (acc.l += val.tradesLost);
@@ -406,7 +379,12 @@ const NeatTrainer = {
 
       const winRate = ((a, b) => (b ? a / b : 0))(wr.w, wr.w + wr.l);
 
-      const averages = Object.keys(stats[0]).map(key => [
+      const tradesLong = stats.map(val => val.tradesLong)
+
+      const tradesShort = stats.map(val => val.tradesShort)
+
+      const averages = Object.keys(stats[0]).filter(key => key != "tradesShort" || "tradesLong")
+      .map(key => [
         key,
         stats.reduce((acc, val) => acc + val[key], 0) / stats.length
       ]);
@@ -416,7 +394,8 @@ const NeatTrainer = {
         return acc;
       }, {});
 
-      const sds = Object.keys(stats[0]).map(key => [
+      const sds = Object.keys(stats[0]).filter(key => key != "tradesShort" || "tradesLong")
+      .map(key => [
         key,
         Math.sqrt(
           stats.reduce(
@@ -431,7 +410,7 @@ const NeatTrainer = {
         return acc;
       }, {});
 
-      return Object.assign(meanStats, sdStats, { winRate });
+      return Object.assign(meanStats, sdStats, { winRate }, { tradesLong, tradesShort });
     };
 
     let results = ArrayUtils.flatten(await Promise.all(work)) //.slice(0,2)
@@ -440,16 +419,13 @@ const NeatTrainer = {
         testStats: combineResults(res.testStats),
         id: res.id
       }));
-
-    // console.log(results[0])
-
     this.evaluate(results);
   },
 
   start: async function() {
     Logger.info("Starting genome search");
 
-    this.normalisedData = DataManager.normaliseData(this.data);
+    this.normalisedData = DataManager.normaliseData(this.data, this.neatConfig, this.indicatorConfig);
 
     if (this.normalisedData.length) {
       Logger.debug(
@@ -509,8 +485,6 @@ const NeatTrainer = {
       };
     });
 
-    //Logger.debug(allData);
-
     // TODO: rewrite the thing below plox
     /*    let testTheData = data => !data.every(d => d.every(val => 0 === val));
 
@@ -527,7 +501,8 @@ const NeatTrainer = {
 */
     const workerData = {
       data: allData,
-      traderConfig
+      pairtypelength: `${this.pair}_${this.type}_${this.length}`,
+      traderConfig: this.traderConfig
     };
 
     this.workers = this.workers.map(() => {
