@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
-import Layout from "../components/Layout";
-import { ema } from "../../src/dataManager/indicators";
+import CircularProgress from "@material-ui/core/CircularProgress";
+import AnyChart from "anychart-react";
+import anychart from "anychart";
+import "./themes/dark_turquoise.js"
 
-const Chart = props => {
-  const table = props.match.params.table;
+const Chart = (props) => {
+  const {table} = props;
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -17,151 +19,79 @@ const Chart = props => {
   useEffect(() => {
     setLoading(true);
     fetchData(table);
-  }, []);
+  }, [table]);
 
-  //this won't be quite right but just want to see if i can get it drawn
-  const closes = data.map(({ close }) => close);
-  const emaData200 = ema(200, [[], [], [], closes]);
-  const emaData50 = ema(50, [[], [], [], closes]);
-  const candleData = data
-    .map(({ id, low, open, close, high, volume }, index) => [
-      id,
+  const candleData = data.map(
+    ({ endTime, low, open, close, high, volume }, index) => [
+      endTime,
       low,
       open,
       close,
       high,
-      emaData200[index],
-      emaData50[index],
       volume
-    ])
-    .slice(0, 5000);
+    ]
+  );
 
-  const drawDashboard = () => {
-    if (!document.getElementById("dashboard_div")) {
-      return;
-    }
+  anychart.theme("darkTurquoise");
+  const chartData = anychart.data.table();
+  chartData.addData(candleData);
+  const mapping = chartData.mapAs();
+  mapping.addField("open", 1);
+  mapping.addField("high", 2);
+  mapping.addField("low", 3);
+  mapping.addField("close", 4);
+  mapping.addField("value", 5);
+  const chart = anychart.stock();
+  
+  //FIRST PLOT
+  chart.plot(0).candlestick(mapping);
 
-    //PROCESS ARRAY DATA
-    const candleTableData = google.visualization.arrayToDataTable(
-      candleData,
-      true
-    );
+  // create second plot
+  const volumePlot = chart.plot(1);
+  // set yAxis labels formatter
+  volumePlot.height(200);
+  volumePlot
+    .yAxis()
+    .labels()
+    .format("{%Value}{scale:(1000)(1)|(k)}");
+  // set crosshair y-label formatter
+  volumePlot
+    .crosshair()
+    .yLabel()
+    .format("{%Value}{scale:(1000)(1)|(k)}");
 
-    //CREATE DASHBOARD INSTANCE
-    const dashboard = new google.visualization.Dashboard(
-      document.getElementById("dashboard_div")
-    );
+  // create volume series on the plot
+  var volumeSeries = volumePlot.column(mapping);
+  // set series settings
+  volumeSeries.name("Volume");
 
-    //OPTIONS I CAN PASTE IN WHEN I GET THE CHART RENDERING.
-    /*
-        'options': {
-          'height': 500,
-          'bar': { 'groupWidth': "90.6%" },
-          'colors':['grey'],
-          'candlestick': { 'hollowIsRising': true,
-            'risingColor': { 'fill': "#1ff126",
-                          'stroke': "#1ff126",
-                          'strokeWidth': 0 },
-            'fallingColor': { 'fill': "#f21f42",
-                            'stroke': "#f21f42",
-                            'strokeWidth': 0 }
-          },
-          'backgroundColor': "#f9fafc",
-          'explorer': {
-            'actions': ["dragToZoom", "rightClickToReset"],
-            'axis': "horizontal",
-            'keepInBounds': true,
-            'maxZoomIn': 20.0
-          }
+  // create scroller series with mapped data
+  chart.scroller().area(mapping);
 
-        }*/
+  // create range picker
+  const rangePicker = anychart.ui.rangePicker();
+  // init range picker
+  rangePicker.render(chart);
 
-    //CREATE CHART RANGE FILTER SLIDER
-    const control = new google.visualization.ControlWrapper({
-      controlType: "ChartRangeFilter",
-      containerId: "slider_div",
-      options: {
-        // Filter by the date axis which is index 0 in this case.
-        filterColumnIndex: 0,
-        ui: {
-          chartType: "HistogramChart",
-          chartOptions: {
-            colors: ["#c6c4be"],
-            chartArea: { width: "70%", height: "20%" },
-            hAxis: { baselineColor: "#291A21" }
-          },
-          chartView: {
-            columns: [0, 3]
-          },
-          minRangeSize: 100
-        }
-      },
-      state: { range: { start: 0, end: 500 } }
-    });
-
-    const chart = new google.visualization.ChartWrapper({
-      chartType: "CandlestickChart",
-      containerId: "chart_div",
-      options: {
-        height: 500,
-        width: "90%",
-        chartArea: { height: "90%", width: "70%" },
-        hAxis: { slantedText: false },
-        legend: { position: "none" },
-        colors: ["#c6c4be"],
-        candlestick: {
-          hollowIsRising: false,
-          risingColor: { fill: "#38CE5F", stroke: "#38CE5F", strokeWidth: 0 },
-          fallingColor: { fill: "#FF5B45", stroke: "#FF5B45", strokeWidth: 0 }
-        },
-        seriesType: "candlesticks",
-        series: {
-          0: { type: "candlesticks " },
-          1: { type: "line" },
-          2: { type: "line" },
-          3: { type: "none" }
-        },
-        backgroundColor: "#F7FBF1"
-      }
-    });
-
-    const volumeChart = new google.visualization.ChartWrapper({
-      chartType: "LineChart",
-      containerId: "volume_div",
-      options: {
-        height: 200,
-        width: "90%",
-        chartArea: { height: "90%", width: "70%" },
-        hAxis: { slantedText: false },
-        legend: { position: "none" },
-        colors: ["#c6c4be"],
-        backgroundColor: "#F7FBF1"
-      }
-    });
-
-    dashboard.bind(control, [chart, volumeChart]);
-    dashboard.draw(candleTableData);
-  };
-
-  google.charts.load("current", {
-    packages: ["corechart", "table", "gauge", "controls"]
-  });
-  google.charts.setOnLoadCallback(drawDashboard);
+  // create range selector
+  var rangeSelector = anychart.ui.rangeSelector();
+  // init range selector
+  rangeSelector.render(chart);
 
   const page = (
     <>
-      <div id="dashboard_div">
-        <div id="chart_div" />
-        <div id="volume_div" />
-        <div id="slider_div" />
-        <div id="table_div" />
-      </div>
+      <AnyChart
+        instance={chart}
+        title={table}
+        height={1000}
+        theme="monochromatic"
+      />
     </>
   );
 
-  const display = loading ? <div>Loading...</div> : page;
+  const display = loading ? <><center><CircularProgress /></center></> : page;
 
-  return <Layout>{display}</Layout>;
+  return <>{display}</>;
 };
 
 export default Chart;

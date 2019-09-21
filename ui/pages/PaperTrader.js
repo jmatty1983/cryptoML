@@ -3,9 +3,7 @@ import React, { useEffect, useState } from "react";
 import Button from "@material-ui/core/Button";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import Paper from "@material-ui/core/Paper";
-import Path from "path";
 import TextField from "@material-ui/core/TextField";
-import Tooltip from "@material-ui/core/Tooltip";
 import Typography from "@material-ui/core/Typography";
 
 import styled from "styled-components";
@@ -39,53 +37,28 @@ const StartButton = styled(Button)`
 `;
 
 const PaperTrader = () => {
-  const [data, setData] = useState([]);
   const [tableData, setTableData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [rowsSelected, setRowsSelected] = useState([]);
   const [warmingCandles, setWarmingCandles] = useState(0);
 
-  const headers = ["Pair", "Type", "Len", "Name", "PnL%", "Win %"];
+  const headers = ["Name", "Win %"];
 
   const fetchData = async () => {
     const response = await fetch(`/api/genomes`);
     const json = await response.json();
 
-    const formatted = json
-      .map(d => [
-        <div>
-          {
-            Path.basename(d.name)
-              .replace(/_/g, " ")
-              .split(" ")[0]
-          }
-        </div>,
-        <div onClick={() => console.log(d)}>
-          {
-            Path.basename(d.name)
-              .replace(/_/g, " ")
-              .split(" ")[1]
-          }
-        </div>,
-        <div onClick={() => console.log(d)}>
-          {
-            Path.basename(d.name)
-              .replace(/_/g, " ")
-              .split(" ")[2]
-          }
-        </div>,
-        <div onClick={() => console.log(d)}>
-          {Path.basename(d.name)
-            .replace(/_/g, " ")
-            .split(" ")
-            .pop()
-            .replace(/[\(\)]/g, "")}
-        </div>,
-        `${Math.round(d.data.testStats.profit * 10000) / 100}%`,
-        `${Math.round(d.data.testStats.winRate * 10000) / 100}%`
-      ])
-      .sort((a, b) => (parseFloat(a[4]) > parseFloat(b[4]) ? -1 : 1));
-    setData(json);
+    const formatted = json.map((d, i) => [
+      <div onClick={() => console.log(d)}>
+        {d.name
+          .split("\\")
+          .pop()
+          .split("_")
+          .slice(0, 5)
+          .join(" ")}
+      </div>,
+      `${Math.round(d.data.testStats.winRate * 10000) / 100}%`
+    ]);
     setTableData(formatted);
     setLoading(false);
   };
@@ -103,18 +76,16 @@ const PaperTrader = () => {
       <StyledBody>
         <Paper>
           <Controls>
-            <Tooltip title="Enter the amount of candles to seed the paper trader with.">
-              <TextField
-                label="Warming Candles"
-                value={warmingCandles}
-                onChange={e => setWarmingCandles(e.target.value)}
-                type="number"
-                InputLabelProps={{
-                  shrink: true
-                }}
-                margin="normal"
-              />
-            </Tooltip>
+            <TextField
+              label="Starting Candles"
+              value={warmingCandles}
+              onChange={e => setWarmingCandles(e.target.value)}
+              type="number"
+              InputLabelProps={{
+                shrink: true
+              }}
+              margin="normal"
+            />
             <StartButton
               color="primary"
               variant="contained"

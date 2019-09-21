@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from "react";
-import Layout from "./Layout";
-//import { ema } from "../../src/dataManager/indicators";
+import MUIDataTable from "mui-datatables";
 
-const Table = () => {
+const GenomeTable = (props) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const options = {
+    rowsPerPage: 100,
+    pagination: true,
+    filter: true,
+    sort: true,
+    print: false,
+  };
 
   const fetchData = async () => {
     const response = await fetch(`/api/genomes`);
@@ -18,50 +25,48 @@ const Table = () => {
     fetchData();
   }, []);
 
-  function dingdong(foo) {
-    return Object.keys(foo).map(i => foo[i].toString());
-  }
-  //console.log(dingdong(data.trainStats))
+  const headers = [
+    { 
+        name: "name",
+        options: {
+                customBodyRender: (value) => <button onClick={() => props.setGenome(value)}>{value}</button>
+        },
+    },
+    "currency",
+    "RTs",
+    "profit",
+    "alpha",
+    "sharpe",
+    "v2ratio",
+    "RoMaD",
+    "winRate",
+  ];
 
   const tableData = data.map(({ name, data }) => [
-    name.toString(),
-    ...dingdong(data.trainStats)
+    name,
+    `${parseFloat(data.testStats.currency).toFixed(2)}`,
+    `${parseFloat(data.testStats.RTs).toFixed(2)}`,
+    `${parseFloat(data.testStats.profit).toFixed(2)}`,
+    `${parseFloat(data.testStats.alpha).toFixed(2)}`,
+    `${parseFloat(data.testStats.sharpe).toFixed(2)}`,
+    `${parseFloat(data.testStats.v2ratio).toFixed(2)}`,
+    `${parseFloat(data.testStats.RoMaD).toFixed(2)}`,
+    `${parseFloat(data.testStats.winRate).toFixed(2)}`
   ]);
-  console.log(tableData);
-  //const tableData = data.map(({ name, data }, index) => [name, data]);
-
-  const drawTable = () => {
-    if (!document.getElementById("table_div")) {
-      return;
-    }
-
-    //PROCESS ARRAY DATA
-    const TableData = google.visualization.arrayToDataTable(tableData);
-
-    //CREATE DASHBOARD INSTANCE
-    const table = new google.visualization.Table(
-      document.getElementById("table_div")
-    );
-
-    table.draw(TableData, {
-      showRowNumber: true,
-      width: "100%",
-      height: "100%"
-    });
-  };
-
-  google.charts.load("current", { packages: ["table"] });
-  google.charts.setOnLoadCallback(drawTable);
 
   const page = (
     <>
-      <div id="table_div" />
+            <MUIDataTable
+    data={tableData}
+    columns={headers}
+    options={options}
+/>
     </>
   );
 
   const display = loading ? <div>Loading...</div> : page;
 
-  return <Layout>{display}</Layout>;
+  return <>{display}</>;
 };
 
-export default Table;
+export default GenomeTable;

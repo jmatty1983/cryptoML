@@ -4,6 +4,11 @@ const ArrayUtils = require("../lib/array");
 const Indicators = require("./indicators");
 const { Logger } = require("../logger");
 
+const normaliseFunctions = {
+  percentageChangeLog2: require("./normFuncs").percentChange
+    .percentageChangeLog2
+};
+
 const limit = 100000;
 const candleTypes = ["tick", "time", "volume", "currency"];
 
@@ -133,11 +138,15 @@ const DataManager = {
    * @returns {integer}
    */
   getNewestTrade: function(table) {
-    return this.checkDataExists(table)
-      ? this.getDb()
-          .prepare(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`)
-          .get()
-      : 0;
+    if (this.checkDataExists(table)) {
+      const ret = this.getDb()
+        .prepare(`SELECT MAX(tradeId) as lastId FROM [${table}] LIMIT 1`)
+        .get();
+
+      return ret.lastId;
+    } else {
+      return 0;
+    }
   },
 
   /**
@@ -180,7 +189,7 @@ const DataManager = {
    * @param {string} length - length of candle
    * @param {array} indicators - indicators to use
    *
-   * @return {array[array]} - an array of arrays with open, close, high, low, volume and any indicators requested
+   * @return {array[array]} - an array of arrays with open, close, high, low, volume, startTime, endTime, lasttradeID and any indicators requested
    */
   loadData: function(pair, type, length, indicators = []) {
     const candles = this.loadCandles(
@@ -192,7 +201,9 @@ const DataManager = {
       ArrayUtils.getProp("low", candles),
       ArrayUtils.getProp("close", candles),
       ArrayUtils.getProp("volume", candles),
-      ArrayUtils.getProp("startTime", candles)
+      ArrayUtils.getProp("startTime", candles),
+      ArrayUtils.getProp("endTime", candles),
+      ArrayUtils.getProp("tradeId", candles)
     ];
 
     indicators.forEach(({ name, params }) =>
@@ -206,7 +217,42 @@ const DataManager = {
     candleArrays = candleArrays.map(array =>
       array.slice(array.length - minLength, array.length)
     );
+
     return candleArrays;
+  },
+
+  /**
+   * Normalises Candle Data
+   *
+   * @param {array} candle data - array of raw candle data
+   *
+   * @param {object} Config data - array of raw candle data
+   *
+   * @return {array[array]} - an array of normalised arrays with open, close, high, low, volume, and any indicators requested
+   */
+  normaliseData: function(rawCandles, neatConfig, indicatorConfig) {
+    const dataToIndex = {
+      opens: 0,
+      highs: 1,
+      lows: 2,
+      closes: 3,
+      volumes: 4,
+      startTime: 5,
+      endTime: 6,
+      tradeId: 7
+    };
+
+    const normalisedCandleData = neatConfig.inputs.map(
+      ({ name, normFunc }) =>
+        normaliseFunctions[normFunc](rawCandles[dataToIndex[name]])
+    );
+    const normalisedIndicatorData = rawCandles
+      .slice(Object.keys(dataToIndex).length)
+      .map((array, index) => {
+        const { normFunc } = indicatorConfig[index];
+        return normaliseFunctions[normFunc](array);
+      });
+    return [...normalisedCandleData, ...normalisedIndicatorData];
   },
 
   /**
@@ -226,7 +272,17 @@ const DataManager = {
         candle.low = trade.price < candle.low ? trade.price : candle.low;
         candle.volume += trade.quantity;
         candle.tradeId = trade.tradeId;
-        return candle;
+        //return candle;
+        return {
+          startTime: candle.startTime,
+          endTime: candle.endTime,
+          open: candle.open,
+          close: candle.close,
+          high: candle.high,
+          low: candle.low,
+          volume: candle.volume,
+          tradeId: candle.tradeId
+        }
       },
       { volume: 0, high: 0, low: Infinity }
     );
@@ -324,19 +380,16 @@ const DataManager = {
 
   /**
    * @param {string} table - table to process from
-   * @param {array{}} types - array of candles to process into
+   * @param {string} candleTable - candleTable to verify last ID from.
+   * @param {array{}} types - array of candles to update into
    * types need to be in the format:
    * [{
    *   type: tick|time|volume|currency,
    *   length: number
    * }]
    */
-  processCandles: async function(table, types) {
-    types.forEach(({ type, length }) =>
-      this.getDb()
-        .prepare(`DROP TABLE IF EXISTS [${table}_${type}_${length}]`)
-        .run()
-    );
+  processCandles: async function(table, candleTable, types) {
+    const lastID = this.getNewestTrade(candleTable)
 
     let remainders = {};
     let offset = 0;
@@ -344,7 +397,7 @@ const DataManager = {
     do {
       const rows = this.getDb()
         .prepare(
-          `SELECT * FROM [${table}] ORDER BY tradeId ASC LIMIT ${limit} OFFSET ${offset}`
+          `SELECT * FROM [${table}] WHERE tradeId >= ${lastID} ORDER BY tradeId ASC LIMIT ${limit} OFFSET ${offset}`
         )
         .all();
 
@@ -368,6 +421,7 @@ const DataManager = {
         return remainderObj;
       }, {});
       offset += limit;
+      
       //ugh
       await new Promise(resolve => setTimeout(resolve, 0));
     } while (rowLen === limit);
@@ -409,7 +463,7 @@ const DataManager = {
             )
         );
       })();
-      Logger.debug(`${candles.length} added to ${table}`);
+      Logger.info(`${candles.length} added to ${table}`);
     } catch (e) {
       Logger.error(e.message);
     }
@@ -452,7 +506,7 @@ const DataManager = {
         );
       })();
 
-      Logger.debug(`${batch.length} rows inserted into table`);
+      Logger.info(`${batch.length} rows inserted into table`);
     } catch (e) {
       Logger.error(e.message);
     }

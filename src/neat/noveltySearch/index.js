@@ -10,10 +10,13 @@ const assert = require("assert");
 function minkowskiDistance(a, b, p = 2) {
   // assert(a.length === b.length);
   p = Math.max(p, Number.EPSILON);
-  const d = a
-    .map((_, idx) => Math.pow(Math.abs(b[idx] - a[idx]), p))
-    .reduce((acc, cur) => acc + cur);
-  return Math.pow(d, 1 / p);
+  return Math.pow(
+    a
+      .map((e, idx) => Math.abs(e - b[idx]))
+      .map(e => Math.pow(e, p))
+      .reduce((acc, cur) => acc + cur, 0),
+    1 / p
+  );
 }
 
 // opts.kNN - kNearestNeighbor
@@ -42,19 +45,21 @@ function noveltySearch(nsObjs, nsArchive, lcObjs, lcArchive, opts = {}) {
           [Infinity, -Infinity]
         )
       )
-      .map(item => [item[0], (x => (x ? x : 1))(item[1] - item[0])]);
-
-    // console.log(JSON.stringify(ranges))
+      .map(item => [item[0], item[1] - item[0]]);
 
     let normalize = x =>
       x.map(obj =>
-        obj.map((value, index) => (value - ranges[index][0]) / ranges[index][1])
+        obj.map(
+          (value, index) =>
+            (value - ranges[index][0]) /
+            (ranges[index][1] ? ranges[index][1] : 1)
+        )
       );
 
     const nsObjsNorm = normalize(nsObjs);
     const nsArchiveNorm = normalize(nsArchive);
 
-    if (true) {
+    if (false) {
       let sanity = pop =>
         pop.forEach(item =>
           item.forEach(halp => {
@@ -74,37 +79,26 @@ function noveltySearch(nsObjs, nsArchive, lcObjs, lcArchive, opts = {}) {
 
   const distances = nsObjs.map(solution =>
     collated
-      .map((f, idx) => [idx, minkowskiDistance(solution, f, p)])
+      .map((f, index) => {
+        return [index, minkowskiDistance(solution, f, p)];
+      })
       .sort((a, b) => a[1] - b[1])
+      // .filter(a => a[1])
       .slice(0, kNN)
   );
-  /*
-  distances.forEach( dong => 
-    dong.forEach( i =>
-      {if( i[1]>1 ) console.log("wat? ",i[1])}
-    )
-  )
-*/
-  // console.log(kNN,distances[0].length)
 
   // collapse local competition objectives into their respective metrics
   const lcs = distances.map((item, idx) =>
     lc[0].map(
       (_, col) =>
-        item.reduce(
-          (acc, val) => acc + Number(lc[idx][col] > lc[val[0]][col]),
-          0
-        ) / kNN
+        item.reduce((acc, val) => acc + (lc[idx][col] > lc[val[0]][col]), 0) /
+        kNN
     )
   );
 
   const novelties = distances.map(
     item => item.reduce((acc, cur) => acc + cur[1], 0) / kNN
   );
-
-  /*  novelties.forEach( (i,idx)=> 
-     {if( i>1 ) console.log("wat? ",i,idx,distances[idx])}
-  )*/
 
   return { novelties, lcs };
 }

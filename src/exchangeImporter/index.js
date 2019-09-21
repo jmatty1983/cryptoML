@@ -32,6 +32,7 @@ const exchangeImporter = {
       this.dataManager.storeTrades(batch);
       return batch.length;
     } catch (e) {
+      Logger.debug(e.message)
       if (e instanceof ccxt.RequestTimeout) {
         //try again on timeout
         await this.fetchTrades(fromId, pair);
@@ -58,9 +59,9 @@ const exchangeImporter = {
         //Get the id of the last trade imported and intialize exchange class
         const lastId = this.dataManager.getNewestTrade(pair);
         if (lastId) {
-          Logger.debug(`trade data detected. Resuming from trade id ${lastId}`);
+          Logger.info(`trade data detected. Resuming from trade id ${lastId}`);
         } else {
-          Logger.debug(`trade data not detected, starting from 1`);
+          Logger.info(`trade data not detected, starting from 1`);
         }
         //This is working under the asusmption that the trade ids begin with 1 for the first and incremented from there
         //This is true for Binance. When / If trying other exchanges this will need testing and possibly modification
@@ -70,14 +71,14 @@ const exchangeImporter = {
         //to be saved. Repeat until the api responds with less than 1000 trades, which should happen when trades are
         //imported up to the most current
         let fromId = lastId + 1;
-        Logger.debug(`Getting data from ${fromId}`);
+        Logger.info(`Getting data from ${fromId}`);
         let amt;
         do {
           amt = await this.fetchTrades(fromId, pair);
           fromId += 1000;
         } while (amt === 1000);
 
-        Logger.info(`${fromId - 1000 + amt - lastId} trades imported`);
+        Logger.info(`${fromId - 1000 + amt - (lastId) -1} trades imported`);
       } else {
         throw "Must specify a pair";
       }
